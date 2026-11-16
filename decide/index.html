@@ -57,6 +57,11 @@ nav b{display:block;font-size:20px;line-height:1.1}
 .gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .back{border:none;background:none;padding:0;color:var(--mut);min-height:36px}
 pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border-radius:12px;padding:10px;margin:8px 0}
+a.btn{display:inline-flex;align-items:center;justify-content:center;font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;min-height:44px;text-decoration:none}
+a.btn.s{min-height:36px;padding:6px 12px;font-size:14px}
+a.btn.w{width:100%}
+.cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.cats .chip{min-height:44px;font-size:16px}
 </style>
 </head>
 <body>
@@ -72,12 +77,21 @@ const DIM={
   act:[{k:'dur',n:'時間',o:['2 小時內','半天','整天']},{k:'place',n:'場地',o:['室內','戶外']},{k:'book',n:'預約',o:['免預約','要預約']},{k:'ppl',n:'人數',o:['一個人','約人'],multi:1},{k:'energy',n:'體力',o:['輕鬆','中等','耗體力']}]};
 const ST={try:'待嘗試',like:'喜歡',ok:'普通'};
 const MAXRE=3;
-function dims(cat){return cat==='food'?[{k:'loc',n:'地點',o:db.locs,multi:1},...DIM.food]:DIM[cat]}
+function dims(cat){if(cat==='food')return[{k:'loc',n:'地點',o:db.locs,multi:1},...DIM.food];if(cat==='act')return DIM.act;const c=db.cats.find(x=>x.id===cat);return c?[{k:'tag',n:'標籤',o:c.tags,multi:1}]:[]}
+function allCats(){return[{id:'food',name:CN.food},{id:'act',name:CN.act},...db.cats.map(c=>({id:c.id,name:c.name}))]}
+function catName(id){const c=allCats().find(x=>x.id===id);return c?c.name:''}
+function catSeg(a,cur,pre,cnt){return`<div class="cats">${allCats().map(c=>`<button class="chip ${cur===c.id?'on':''}" data-a="${a}" data-c="${c.id}">${pre||''}${esc(c.name)}${cnt?' '+db.items.filter(x=>x.cat===c.id).length:''}</button>`).join('')}</div>`}
+function clean(s){return String(s||'').replace(/[,，、;；\t"]/g,' ').replace(/\s+/g,' ').trim()}
+function mapUrl(s){s=String(s||'').trim();if(!s)return'';if(/^https?:\/\//i.test(s)){try{const u=new URL(s);return u.protocol==='http:'||u.protocol==='https:'?u.href:''}catch(e){return''}}return'https://maps.apple.com/?q='+encodeURIComponent(s)}
+function mapBtn(it,cls){const u=mapUrl(it.url);return u?`<a class="btn ${cls||'s'}" href="${esc(u)}" target="_blank" rel="noopener">開地圖</a>`:''}
 let db=load();
 let ui={tab:'draw',cat:db.pref.cat,f:db.pref.f[db.pref.cat],round:null,poolCat:'food',edit:null,bulk:{text:'',rows:null}};
 
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!d||!Array.isArray(d.items))d={items:[],lastExport:null};
-  if(!Array.isArray(d.locs))d.locs=['公司附近','家附近'];if(!d.pref||!d.pref.f)d.pref={cat:'food',f:{}};if(!DIM[d.pref.cat])d.pref.cat='food';d.pref.f.food=d.pref.f.food||{};d.pref.f.act=d.pref.f.act||{};return d}
+  if(!Array.isArray(d.locs))d.locs=['公司附近','家附近'];
+  d.cats=Array.isArray(d.cats)?d.cats.filter(c=>c&&typeof c.id==='string'&&c.name).map(c=>({id:c.id,name:String(c.name),tags:Array.isArray(c.tags)?c.tags.map(String):[]})):[];
+  if(!d.pref||!d.pref.f)d.pref={cat:'food',f:{}};if(!(d.pref.cat==='food'||d.pref.cat==='act'||d.cats.some(c=>c.id===d.pref.cat)))d.pref.cat='food';
+  d.pref.f.food=d.pref.f.food||{};d.pref.f.act=d.pref.f.act||{};d.cats.forEach(c=>{d.pref.f[c.id]=d.pref.f[c.id]||{}});return d}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function pad(n){return String(n).padStart(2,'0')}
 function today(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
@@ -98,9 +112,9 @@ function vDraw(){
   let h='<h1>做什麼</h1>';
   const pend=db.items.filter(x=>x.pend);
   pend.forEach(it=>{h+=`<div class="card"><div class="mut">上次選的，覺得如何？</div><div class="row sp"><span class="name">${esc(it.name)}</span>${it.cat==='act'&&(it.t.book||[]).includes('要預約')?`<button class="s ${it.booked?'p':''}" data-a="booked" data-id="${it.id}">${it.booked?'已預約':'標記已預約'}</button>`:''}</div>
-    <div class="gap"><button class="s" data-a="rate" data-id="${it.id}" data-v="like">喜歡</button><button class="s" data-a="rate" data-id="${it.id}" data-v="ok">普通</button><button class="s d" data-a="rate" data-id="${it.id}" data-v="del">移除</button><button class="s" data-a="rate" data-id="${it.id}" data-v="none">沒去</button></div></div>`});
+    <div class="gap">${mapBtn(it)}<button class="s" data-a="rate" data-id="${it.id}" data-v="like">喜歡</button><button class="s" data-a="rate" data-id="${it.id}" data-v="ok">普通</button><button class="s d" data-a="rate" data-id="${it.id}" data-v="del">移除</button><button class="s" data-a="rate" data-id="${it.id}" data-v="none">沒去</button></div></div>`});
   if(ui.round)return h+vResult();
-  h+=`<div class="seg">${Object.keys(CN).map(c=>`<button class="chip ${ui.cat===c?'on':''}" data-a="cat" data-c="${c}">${CN[c]}</button>`).join('')}</div>`;
+  h+=catSeg('cat',ui.cat);
   if(!db.items.some(x=>x.cat===ui.cat))return h+`<div class="card empty"><p class="name">先放進幾個選項</p><p class="mut">把常去的、想試的都丟進選項池，之後交給它決定。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newItem">新增選項</button><button data-a="go" data-tab="bulk">批次匯入</button></div></div>`;
   dims(ui.cat).forEach(d=>{if(!d.o.length)return;const sel=ui.f[d.k]||[];h+=`<label>${d.n}</label><div class="chips">${d.o.map(o=>`<button class="chip ${sel.includes(o)?'on':''}" data-a="filt" data-k="${d.k}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`});
   const n=pool().length;
@@ -110,25 +124,27 @@ function vDraw(){
 function vResult(){
   const r=ui.round,it=item(r.cur);if(!it){ui.round=null;return''}
   const rest=pool().filter(x=>!r.seen.includes(x.id)).length,can=r.left>0&&rest>0;
-  return`<div class="card result"><div class="mut">${it.cat==='food'?'今天就吃':'這個週末就去'}</div><div class="big">${esc(it.name)}</div><div class="mut" style="margin-top:8px">${esc(tagLine(it))}</div><div class="mut">${ago(it.last)}${it.status==='try'?' · 待嘗試':''}</div>${it.note?`<div class="mut" style="margin-top:8px">${esc(it.note)}</div>`:''}</div>
+  return`<div class="card result"><div class="mut">${it.cat==='food'?'今天就吃':it.cat==='act'?'這個週末就去':'今天就選這個'}</div><div class="big">${esc(it.name)}</div><div class="mut" style="margin-top:8px">${esc(tagLine(it))}</div><div class="mut">${ago(it.last)}${it.status==='try'?' · 待嘗試':''}</div>${it.note?`<div class="mut" style="margin-top:8px">${esc(it.note)}</div>`:''}</div>
   <button class="p w big" data-a="accept">就這個</button>
+  ${mapUrl(it.url)?`<div class="gap">${mapBtn(it,'w')}</div>`:''}
   <div class="gap"><button class="w" data-a="reroll" ${can?'':'disabled style="opacity:.5"'}>${r.left<=0?'重抽次數用完了，就這個吧':rest<=0?'沒有其他符合的選項了':'重抽（剩 '+r.left+' 次）'}</button></div>
   <div class="gap"><button class="back w" data-a="cancelRound">改條件</button></div>`}
 
 function vPool(){
   const l=db.items.filter(x=>x.cat===ui.poolCat).sort((a,b)=>({try:0,like:1,ok:2}[a.status]-{try:0,like:1,ok:2}[b.status])||a.name.localeCompare(b.name,'zh-Hant'));
   return`<div class="row sp"><h1>選項池</h1><button class="p s" data-a="newItem">＋ 新增</button></div>
-  <div class="seg">${Object.keys(CN).map(c=>`<button class="chip ${ui.poolCat===c?'on':''}" data-a="poolCat" data-c="${c}">${CN[c]} ${db.items.filter(x=>x.cat===c).length}</button>`).join('')}</div>
+  ${catSeg('poolCat',ui.poolCat,'',1)}
   ${l.length?l.map(it=>`<div class="card" data-a="editItem" data-id="${it.id}"><div class="row sp"><span class="name">${esc(it.name)}</span><span class="pill ${it.status==='try'?'w':''}">${ST[it.status]}</span></div><div class="mut">${esc(tagLine(it))||'沒有標籤'}</div><div class="mut">${ago(it.last)}</div></div>`).join(''):'<div class="card empty mut">這個類別還沒有選項</div>'}`}
 
 function vEdit(){
   const e=ui.edit;
   let h=`<button class="back" data-a="go" data-tab="pool">‹ 取消</button><h1>${e.id?'編輯選項':'新增選項'}</h1>
-  <div class="seg">${Object.keys(CN).map(c=>`<button class="chip ${e.cat===c?'on':''}" data-a="setCat" data-c="${c}">${CN[c]}</button>`).join('')}</div>
-  <label>名稱</label><input data-m="edit.name" value="${esc(e.name)}" placeholder="${e.cat==='food'?'巷口越南河粉':'陶藝體驗課'}" autocomplete="off">`;
-  dims(e.cat).forEach(d=>{const sel=e.t[d.k]||[];h+=`<label>${d.n}${d.multi?'（可複選）':''}</label><div class="chips">${d.o.map(o=>`<button class="chip ${sel.includes(o)?'on':''}" data-a="tag" data-k="${d.k}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>${d.k==='loc'?'<div class="mut" style="margin-top:4px">地點可以在「設定」增減。</div>':''}`});
+  ${catSeg('setCat',e.cat)}
+  <label>名稱</label><input data-m="edit.name" value="${esc(e.name)}" placeholder="${e.cat==='food'?'巷口越南河粉':e.cat==='act'?'陶藝體驗課':'輸入名稱'}" autocomplete="off">`;
+  dims(e.cat).forEach(d=>{const sel=e.t[d.k]||[];h+=`<label>${d.n}${d.multi?'（可複選）':''}</label><div class="chips">${d.o.map(o=>`<button class="chip ${sel.includes(o)?'on':''}" data-a="tag" data-k="${d.k}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>${d.k==='loc'?'<div class="mut" style="margin-top:4px">地點可以在「設定」增減。</div>':d.k==='tag'?'<div class="mut" style="margin-top:4px">標籤可以在「設定」增減。</div>':''}`});
   h+=`<label>狀態</label><div class="chips">${Object.keys(ST).map(s=>`<button class="chip ${e.status===s?'on':''}" data-a="setSt" data-v="${s}">${ST[s]}</button>`).join('')}</div>
-  <label>備註（選填）</label><input data-m="edit.note" value="${esc(e.note||'')}" placeholder="地址、連結或想點的東西">
+  <label>備註（選填）</label><input data-m="edit.note" value="${esc(e.note||'')}" placeholder="想點的東西、注意事項">
+  <label>地圖連結或地址（選填）</label><input data-m="edit.url" value="${esc(e.url||'')}" placeholder="貼上地圖分享連結，或直接寫地址" autocomplete="off">
   <p class="mut">標籤沒選的話，任何條件都會抽到它。</p>
   <div class="gap"><button class="p w" data-a="saveItem">儲存</button></div>
   ${e.id?'<div class="gap"><button class="d w" data-a="delItem">刪除</button></div>':''}`;
@@ -139,8 +155,10 @@ function vSet(){
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
   <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" accept=".json,application/json" hidden></div>
   <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="新增地點" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增</button></div></div>
+  <h2>自訂類別</h2>${db.cats.map(c=>`<div class="card"><div class="row sp"><span class="name">${esc(c.name)}</span><button class="s d" data-a="delCat" data-id="${c.id}">刪除類別</button></div><div class="chips" style="margin-top:8px">${c.tags.map((t,i)=>`<button class="chip" data-a="delTag" data-id="${c.id}" data-i="${i}">${esc(t)} ✕</button>`).join('')||'<span class="mut">還沒有標籤</span>'}</div><div class="row" style="margin-top:10px"><input id="tag_${c.id}" placeholder="新增標籤" autocomplete="off"><button class="p" style="flex:none" data-a="addTag" data-id="${c.id}">新增</button></div></div>`).join('')}
+  <div class="card"><p class="mut" style="margin-top:0">想抽別的東西，例如看什麼、今晚做什麼，可以新增類別。</p><div class="row"><input id="newCat" placeholder="類別名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addCat">新增</button></div></div>
   <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多選項。</p><button data-a="go" data-tab="bulk">批次匯入選項</button></div>
-  <p class="mut" style="text-align:center">吃的 ${db.items.filter(x=>x.cat==='food').length} 個 · 週末活動 ${db.items.filter(x=>x.cat==='act').length} 個</p>`}
+  <p class="mut" style="text-align:center">${allCats().map(c=>c.name+' '+db.items.filter(x=>x.cat===c.id).length+' 個').join(' · ')}</p>`}
 
 function vBulk(){
   const b=ui.bulk;
@@ -149,37 +167,44 @@ function vBulk(){
   <pre>巷口越南河粉, 吃, 內用, 一般, 一個人
 週五火鍋, 吃, 內用, 犒賞, 多人
 陶藝體驗課, 活動, 半天, 室內, 要預約, 待嘗試
-河邊騎腳踏車, 活動, 2小時內, 戶外, 免預約, 耗體力</pre>
-  <p class="mut">類別寫「吃」或「活動」。沒寫時會依標籤判斷，判斷不出來就用下面選的類別。狀態可寫待嘗試、喜歡、普通，沒寫就是待嘗試。吃的可以加地點，名稱要跟「設定」裡的地點一樣。</p>
-  <div class="seg">${Object.keys(CN).map(c=>`<button class="chip ${ui.poolCat===c?'on':''}" data-a="bulkCat" data-c="${c}">預設：${CN[c]}</button>`).join('')}</div>
+河邊騎腳踏車, 活動, 2小時內, 戶外, 免預約, 耗體力
+小店咖啡, 吃, 內用, https://maps.app.goo.gl/xxxx</pre>
+  <p class="mut">類別寫「吃」、「活動」或你自訂的類別名稱。沒寫時會依標籤判斷，判斷不出來就用下面選的類別。狀態可寫待嘗試、喜歡、普通，沒寫就是待嘗試。吃的可以加地點，名稱要跟「設定」裡的地點一樣。地圖連結直接貼網址即可。</p>
+  ${catSeg('bulkCat',ui.poolCat,'預設：')}
   <textarea data-m="bulk.text" style="min-height:160px" placeholder="從試算表或記事本貼上">${esc(b.text)}</textarea>
   <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden>`;
   if(b.rows){
-    h+=`<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${CN[r.cat]}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
+    h+=`<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${esc(catName(r.cat))}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}${r.url?' · 有地圖連結':''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 個</button>`:''}`}
   return h}
 
 function norm(s){return s.replace(/\s/g,'')}
 function parseBulk(text,defCat){
-  const rows=[];let dup=0;const seen=new Set(db.items.map(x=>x.cat+'|'+x.name.toLowerCase()));
+  const rows=[];let dup=0;const seen=new Set(db.items.map(x=>x.cat+'|'+x.name.toLowerCase()));const cats=allCats();
   const alias={'一人':'一個人','獨自':'一個人','單人':'一個人','多人聚餐':'多人','朋友':'約人','便宜':'省','平價':'省','普通價':'一般','貴':'犒賞','高價':'犒賞','外帶':'外送','需預約':'要預約','預約':'要預約','不用預約':'免預約','兩小時內':'2小時內','2小時':'2小時內','一整天':'整天','全天':'整天','半日':'半天','戶內':'室內','戶外活動':'戶外','累':'耗體力'};
-  text.split(/\r?\n/).forEach(line=>{
+  text.split(/\r?\n/).forEach(raw=>{
+    let url='',line=raw;
+    line=line.replace(/"(https?:\/\/[^"]+)"/,(m,u)=>{url=u;return ''});
+    if(!url)line=line.replace(/https?:\/\/[^\s,，、;；\t"]+/,m=>{url=m;return ''});
     const f=line.split(/[\t,，、;；]/).map(s=>s.trim().replace(/^"|"$/g,'')).filter(Boolean);
     if(!f.length)return;const name=f[0];if(/^(名稱|名字|name)$/i.test(name))return;
-    let cat=null,status='try';const found={food:{},act:{}},extra=[];
+    let cat=null,status='try';const cand=[],extra=[];
     f.slice(1).forEach(x=>{let k=norm(x);if(alias[k])k=alias[k];
       if(/^(吃|吃的|餐廳|美食|food)$/i.test(k)){cat='food';return}
       if(/^(活動|週末活動|周末活動|act|activity)$/i.test(k)){cat='act';return}
+      const cc=cats.find(c=>norm(c.name)===k);if(cc){cat=cc.id;return}
       if(k==='待嘗試'||k==='想試'){status='try';return}
       if(k==='喜歡'){status='like';return}
       if(k==='普通'){status='ok';return}
-      let hit=false;
-      ['food','act'].forEach(c=>dims(c).forEach(d=>d.o.forEach(o=>{if(norm(o)===k){(found[c][d.k]=found[c][d.k]||[]).push(o);hit=true}})));
-      if(!hit)extra.push(x)});
-    if(!cat){const nf=Object.keys(found.food).length,na=Object.keys(found.act).length;cat=nf>na?'food':na>nf?'act':defCat}
+      const hits=[];cats.forEach(c=>dims(c.id).forEach(d=>d.o.forEach(o=>{if(norm(o)===k)hits.push([c.id,d.k,o])})));
+      if(hits.length)cand.push({x,hits});else extra.push(x)});
+    const found={};cats.forEach(c=>found[c.id]={});
+    cand.forEach(({hits})=>hits.forEach(([c,dk,o])=>{(found[c][dk]=found[c][dk]||[]).push(o)}));
+    if(!cat){let best=-1,tie=false;cats.forEach(c=>{const n=Object.values(found[c.id]).reduce((m,v)=>m+v.length,0);if(n>best){best=n;cat=c.id;tie=false}else if(n===best)tie=true});if(tie||best<=0)cat=defCat}
+    cand.forEach(({x,hits})=>{if(!hits.some(h=>h[0]===cat))extra.push(x)});
     const t={};dims(cat).forEach(d=>{const v=found[cat][d.k]||[];t[d.k]=d.multi?[...new Set(v)]:v.slice(0,1)});
     const key=cat+'|'+name.toLowerCase();if(seen.has(key)){dup++;return}seen.add(key);
-    rows.push({id:uid(),cat,name,t,status,note:extra.join('，'),last:null,pend:false,booked:false})});
+    rows.push({id:uid(),cat,name,t,status,note:extra.join('，'),url:url.replace(/[,，、;；]+$/,''),last:null,pend:false,booked:false})});
   return{rows,dup}}
 
 const VIEWS={draw:vDraw,pool:vPool,edit:vEdit,set:vSet,bulk:vBulk};
@@ -191,7 +216,7 @@ function render(){
 
 const A={
   go(d){ui.tab=d.tab;if(d.tab==='bulk')ui.bulk={text:'',rows:null};render()},
-  cat(d){ui.cat=db.pref.cat=d.c;ui.f=db.pref.f[d.c];save();render()},
+  cat(d){ui.cat=db.pref.cat=d.c;ui.f=db.pref.f[d.c]=db.pref.f[d.c]||{};save();render()},
   filt(d){const a=ui.f[d.k]=ui.f[d.k]||[];const i=a.indexOf(d.v);i<0?a.push(d.v):a.splice(i,1);save();render()},
   draw(){const l=pool();if(!l.length)return toast('放寬條件，或先新增選項');const it=pickOne(l);ui.round={cur:it.id,seen:[it.id],left:MAXRE};render()},
   reroll(){const r=ui.round;if(!r||r.left<=0)return;const l=pool().filter(x=>!r.seen.includes(x.id));if(!l.length)return;const it=pickOne(l);r.cur=it.id;r.seen.push(it.id);r.left--;render()},
@@ -204,22 +229,33 @@ const A={
     save();render()},
   addLoc(){const el=document.getElementById('newLoc'),v=el.value.trim().replace(/[,，、;；\t]/g,' ');if(!v)return toast('輸入地點名稱');if(db.locs.includes(v))return toast('已經有了');db.locs.push(v);save();render()},
   delLoc(d){const v=db.locs[Number(d.i)];if(!confirm('移除地點「'+v+'」？已貼上這個地點的選項會變成不限地點。'))return;db.locs.splice(Number(d.i),1);db.items.forEach(x=>{if(x.t.loc)x.t.loc=x.t.loc.filter(o=>o!==v)});const f=db.pref.f.food;if(f.loc)f.loc=f.loc.filter(o=>o!==v);save();render()},
+  addCat(){const v=clean(document.getElementById('newCat').value);if(!v)return toast('輸入類別名稱');if(v.length>10)return toast('名稱請在 10 個字內');
+    if(/^(吃|吃的|餐廳|美食|food|活動|週末活動|周末活動|act|activity|待嘗試|想試|喜歡|普通)$/i.test(norm(v))||allCats().some(c=>norm(c.name)===norm(v)))return toast('已經有這個類別或名稱已被保留');
+    if(db.cats.length>=8)return toast('自訂類別最多 8 個');const c={id:'c_'+uid(),name:v,tags:[]};db.cats.push(c);db.pref.f[c.id]={};save();toast('已新增「'+v+'」');render()},
+  delCat(d){const c=db.cats.find(x=>x.id===d.id),n=db.items.filter(x=>x.cat===d.id).length;if(!c||!confirm('刪除類別「'+c.name+'」？'+(n?'裡面的 '+n+' 個選項也會一起刪除，':'')+'無法復原。'))return;
+    db.items=db.items.filter(x=>x.cat!==d.id);db.cats=db.cats.filter(x=>x.id!==d.id);delete db.pref.f[d.id];
+    if(db.pref.cat===d.id)db.pref.cat='food';if(ui.cat===d.id){ui.cat='food';ui.f=db.pref.f.food}if(ui.poolCat===d.id)ui.poolCat='food';ui.round=null;save();render()},
+  addTag(d){const c=db.cats.find(x=>x.id===d.id),v=clean(document.getElementById('tag_'+d.id).value);if(!c)return;if(!v)return toast('輸入標籤名稱');
+    if(c.tags.includes(v))return toast('已經有了');if(c.tags.length>=20)return toast('標籤最多 20 個');c.tags.push(v);save();render()},
+  delTag(d){const c=db.cats.find(x=>x.id===d.id),v=c&&c.tags[Number(d.i)];if(!c||v==null||!confirm('移除標籤「'+v+'」？已貼上這個標籤的選項會變成不限。'))return;
+    c.tags.splice(Number(d.i),1);db.items.forEach(x=>{if(x.cat===c.id&&x.t.tag)x.t.tag=x.t.tag.filter(o=>o!==v)});const f=db.pref.f[c.id];if(f&&f.tag)f.tag=f.tag.filter(o=>o!==v);save();render()},
   poolCat(d){ui.poolCat=d.c;render()},
   bulkCat(d){ui.poolCat=d.c;ui.bulk.rows=null;render()},
-  newItem(){const cat=ui.tab==='draw'?ui.cat:ui.poolCat;ui.edit={id:null,cat,name:'',t:{},status:'try',note:''};ui.tab='edit';render()},
-  editItem(d){const it=item(d.id);ui.edit={id:it.id,cat:it.cat,name:it.name,t:JSON.parse(JSON.stringify(it.t)),status:it.status,note:it.note||''};ui.tab='edit';render()},
+  newItem(){const cat=ui.tab==='draw'?ui.cat:ui.poolCat;ui.edit={id:null,cat,name:'',t:{},status:'try',note:'',url:''};ui.tab='edit';render()},
+  editItem(d){const it=item(d.id);ui.edit={id:it.id,cat:it.cat,name:it.name,t:JSON.parse(JSON.stringify(it.t)),status:it.status,note:it.note||'',url:it.url||''};ui.tab='edit';render()},
   setCat(d){if(ui.edit.cat!==d.c){ui.edit.cat=d.c;ui.edit.t={}}render()},
   setSt(d){ui.edit.status=d.v;render()},
   tag(d){const e=ui.edit,dim=dims(e.cat).find(x=>x.k===d.k),a=e.t[d.k]||[];const i=a.indexOf(d.v);
     if(dim.multi){i<0?a.push(d.v):a.splice(i,1);e.t[d.k]=a}else e.t[d.k]=i<0?[d.v]:[];render()},
   saveItem(){const e=ui.edit,name=e.name.trim();if(!name)return toast('輸入名稱');
     if(db.items.some(x=>x.id!==e.id&&x.cat===e.cat&&x.name.toLowerCase()===name.toLowerCase()))return toast('選項池裡已經有了');
+    if((e.url||'').trim()&&!mapUrl(e.url))return toast('連結格式看起來不對');const url=(e.url||'').trim();
     const t={};dims(e.cat).forEach(d=>t[d.k]=e.t[d.k]||[]);
-    if(e.id)Object.assign(item(e.id),{cat:e.cat,name,t,status:e.status,note:e.note.trim()});
-    else db.items.push({id:uid(),cat:e.cat,name,t,status:e.status,note:e.note.trim(),last:null,pend:false,booked:false});
+    if(e.id)Object.assign(item(e.id),{cat:e.cat,name,t,status:e.status,note:e.note.trim(),url});
+    else db.items.push({id:uid(),cat:e.cat,name,t,status:e.status,note:e.note.trim(),url,last:null,pend:false,booked:false});
     save();ui.poolCat=e.cat;ui.tab='pool';toast('已儲存');render()},
   delItem(){const it=item(ui.edit.id);if(!confirm('刪除「'+it.name+'」？'))return;db.items=db.items.filter(x=>x.id!==it.id);save();ui.tab='pool';render()},
-  async export(){const name='what-to-do-backup-'+today()+'.json';const text=JSON.stringify({app:'what-to-do',v:1,at:new Date().toISOString(),data:{items:db.items,locs:db.locs}},null,1);
+  async export(){const name='what-to-do-backup-'+today()+'.json';const text=JSON.stringify({app:'what-to-do',v:1,at:new Date().toISOString(),data:{items:db.items,locs:db.locs,cats:db.cats}},null,1);
     const ok=await shareOrDownload(name,text);if(ok){db.lastExport=today();save();render()}},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
@@ -238,8 +274,12 @@ document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0]
   const rd=new FileReader();
   if(el.id==='impFile'){rd.onload=()=>{try{const j=JSON.parse(rd.result);if(j.app!=='what-to-do'||!j.data||!Array.isArray(j.data.items))throw 0;
       if(!confirm('匯入 '+j.data.items.length+' 個選項，取代目前手機上的 '+db.items.length+' 個？'))return;
-      if(Array.isArray(j.data.locs))db.locs=j.data.locs.map(String);j.data.items.forEach(x=>{if(x&&x.t&&Array.isArray(x.t.loc))x.t.loc.forEach(o=>{if(!db.locs.includes(o))db.locs.push(String(o))})});
-      db.items=j.data.items.filter(x=>x&&x.name&&dims(x.cat)).map(x=>{const t={};dims(x.cat).forEach(d=>{const v=x.t&&Array.isArray(x.t[d.k])?x.t[d.k].filter(o=>d.o.includes(o)):[];t[d.k]=v});return{id:x.id||uid(),cat:x.cat,name:String(x.name),t,status:ST[x.status]?x.status:'try',note:String(x.note||''),last:x.last||null,pend:!!x.pend,booked:!!x.booked}});
+      if(Array.isArray(j.data.locs))db.locs=j.data.locs.map(String);
+      db.cats=Array.isArray(j.data.cats)?j.data.cats.filter(c=>c&&/^c_[\w-]+$/.test(String(c.id))&&c.name).slice(0,8).map(c=>({id:String(c.id),name:String(c.name),tags:Array.isArray(c.tags)?c.tags.map(String):[]})):[];
+      j.data.items.forEach(x=>{if(!x||!x.t)return;if(Array.isArray(x.t.loc))x.t.loc.forEach(o=>{if(!db.locs.includes(String(o)))db.locs.push(String(o))});const c=db.cats.find(k=>k.id===x.cat);if(c&&Array.isArray(x.t.tag))x.t.tag.forEach(o=>{if(!c.tags.includes(String(o)))c.tags.push(String(o))})});
+      const okCat=c=>c==='food'||c==='act'||db.cats.some(k=>k.id===c);
+      db.items=j.data.items.filter(x=>x&&x.name&&okCat(x.cat)).map(x=>{const t={};dims(x.cat).forEach(d=>{const v=x.t&&Array.isArray(x.t[d.k])?x.t[d.k].map(String).filter(o=>d.o.includes(o)):[];t[d.k]=v});return{id:x.id||uid(),cat:x.cat,name:String(x.name),t,status:ST[x.status]?x.status:'try',note:String(x.note||''),url:mapUrl(x.url)?String(x.url):'',last:x.last||null,pend:!!x.pend,booked:!!x.booked}});
+      const nf={food:db.pref.f.food||{},act:db.pref.f.act||{}};db.cats.forEach(c=>{nf[c.id]={}});if(nf.food.loc)nf.food.loc=nf.food.loc.filter(o=>db.locs.includes(o));db.pref={cat:'food',f:nf};ui.cat='food';ui.f=nf.food;ui.poolCat='food';
       save();ui.round=null;toast('已匯入');ui.tab='pool';render()}catch(x){alert('這不是「做什麼」的備份檔。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
