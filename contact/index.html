@@ -68,7 +68,7 @@ const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let db=load();
-let ui={tab:'week',all:false,q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
+let ui={tab:'week',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
 
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.people))return d}catch(e){}return{people:[],lastExport:null}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -89,24 +89,39 @@ function dueList(){const t=today();return db.people.filter(p=>p.mode==='active'&
 function overLabel(p){if(!p.last)return'還沒有聯絡紀錄';const o=days(p.last,today())-p.iv;return o<=0?'到期了':'超過 '+span(o)}
 function lastNote(p){return p.notes&&p.notes.length?p.notes[0]:null}
 
-function vWeek(){
-  if(!db.people.length)return`<h1>本週該聯絡</h1><div class="card empty"><p class="name">先建立你的名單</p><p class="mut">加入想保持聯絡的人，或只是想記住聊過什麼的人。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newPerson">新增一個人</button><button data-a="go" data-tab="bulk">批次匯入</button></div></div>`;
+function dueCard(p){const n=lastNote(p);
+  const act=ui.doneId===p.id?`<label>聊了什麼（選填）</label><input id="dnT" data-m="dn.t" value="${esc(ui.dn.t)}" placeholder="寫一句就好" autocomplete="off"><div class="gap"><button class="p s" data-a="doneSave">儲存</button><button class="s" data-a="doneSave" data-skip="1">不寫，直接完成</button><button class="s" data-a="doneCancel">取消</button></div>`
+    :`<div class="gap"><button class="p s" data-a="done" data-id="${p.id}">已聯絡</button><button class="s" data-a="logFor" data-id="${p.id}">記一筆</button><button class="s" data-a="skip" data-id="${p.id}">這週跳過</button></div>`;
+  return`<div class="card"><div class="row sp"><span class="name" data-a="open" data-id="${p.id}">${esc(p.name)}</span><span class="pill">${overLabel(p)}</span></div>
+    <div class="mut">${esc(p.cat)} · 理想每 ${ivName(p.iv)}</div>
+    ${p.ask?`<div class="ask">下次可以問：${esc(p.ask)}</div>`:''}
+    ${n?`<div class="mut" style="margin-top:6px">上次聊（${md(n.d)}）：${esc(n.t)}</div>`:''}${act}</div>`}
+function weekBody(){
   const due=dueList(),show=ui.all?due:due.slice(0,3);
-  let h='<h1>本週該聯絡</h1>';
+  let h='<h2>本週該聯絡</h2>';
   if(!due.length){
     const t=today(),up=db.people.filter(p=>p.mode==='active'&&p.last).map(p=>({p,n:p.iv-days(p.last,t)})).filter(x=>x.n>0).sort((a,b)=>a.n-b.n)[0];
     h+=`<div class="card empty"><p class="name">這週沒有需要聯絡的人</p><p class="mut">${up?'下一位是 '+esc(up.p.name)+'，'+span(up.n)+'後':'把想維繫的人設為「主動聯絡」，到期時會出現在這裡。'}</p></div>`;
   }
-  show.forEach(({p})=>{const n=lastNote(p);
-    h+=`<div class="card"><div class="row sp"><span class="name" data-a="open" data-id="${p.id}">${esc(p.name)}</span><span class="pill">${overLabel(p)}</span></div>
-    <div class="mut">${esc(p.cat)} · 理想每 ${ivName(p.iv)}</div>
-    ${p.ask?`<div class="ask">下次可以問：${esc(p.ask)}</div>`:''}
-    ${n?`<div class="mut" style="margin-top:6px">上次聊（${md(n.d)}）：${esc(n.t)}</div>`:''}
-    <div class="gap"><button class="p s" data-a="done" data-id="${p.id}">已聯絡</button><button class="s" data-a="logFor" data-id="${p.id}">記一筆</button><button class="s" data-a="skip" data-id="${p.id}">這週跳過</button></div></div>`});
+  show.forEach(({p})=>{h+=dueCard(p)});
   if(due.length>3)h+=`<button class="w" data-a="toggleAll">${ui.all?'只看最該聯絡的 3 位':'看全部到期的 '+due.length+' 位'}</button>`;
-  const rest=db.people.length-due.length;
-  if(due.length)h+=`<p class="mut" style="text-align:center">其他 ${rest} 人目前不用擔心</p>`;
+  if(due.length)h+=`<p class="mut" style="text-align:center">其他 ${db.people.length-due.length} 人目前不用擔心</p>`;
   return h}
+function searchBody(){
+  const raw=ui.hq.trim(),q=raw.toLowerCase();
+  const res=db.people.map(p=>{const byName=p.name.toLowerCase().includes(q),hit=p.notes.find(n=>n.t.toLowerCase().includes(q)),other=(p.ask||'').toLowerCase().includes(q)||(p.memo||'').toLowerCase().includes(q);return byName||hit||other?{p,byName,hit}:null}).filter(Boolean).sort((a,b)=>(b.byName-a.byName)||a.p.name.localeCompare(b.p.name,'zh-Hant')).slice(0,12);
+  let h=res.length?'':'<p class="mut">找不到符合的人或紀錄</p>';
+  res.forEach(({p,byName,hit})=>{const ns=!byName&&hit?[hit]:p.notes.slice(0,2);
+    h+=`<div class="card"><div class="row sp"><span class="name" data-a="open" data-id="${p.id}">${esc(p.name)}</span><span class="pill ${p.mode==='active'?'':'m'}">${esc(p.cat)}</span></div>
+    ${p.ask?`<div class="ask">下次可以問：${esc(p.ask)}</div>`:''}
+    ${p.memo?`<div class="mut" style="margin-top:6px">備註：${esc(p.memo)}</div>`:''}
+    ${ns.length?ns.map(n=>`<div style="margin-top:6px"><span class="mut">${md(n.d)}</span> ${esc(n.t)}</div>`).join(''):'<div class="mut" style="margin-top:6px">還沒有紀錄</div>'}
+    <div class="gap"><button class="p s" data-a="logFor" data-id="${p.id}">記一筆</button><button class="s" data-a="open" data-id="${p.id}">看全部</button></div></div>`});
+  if(!db.people.some(p=>p.name.toLowerCase()===q))h+=`<button class="w" data-a="hAdd">＋ 新增「${esc(raw)}」並記一筆</button>`;
+  return h}
+function vWeek(){
+  if(!db.people.length)return`<h1>保持聯絡</h1><div class="card empty"><p class="name">先建立你的名單</p><p class="mut">加入想保持聯絡的人，或只是想記住聊過什麼的人。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newPerson">新增一個人</button><button data-a="go" data-tab="bulk">批次匯入</button></div></div>`;
+  return`<h1>保持聯絡</h1><input id="hq" data-i="hq" placeholder="搜尋名字或聊過的事" value="${esc(ui.hq)}" autocomplete="off"><div id="hres" style="margin-top:12px">${ui.hq.trim()?searchBody():weekBody()}</div>`}
 
 function chipsHtml(){
   const q=ui.logQ.trim().toLowerCase();
@@ -150,6 +165,7 @@ function vPerson(){
   const act=p.mode==='active';
   return`<button class="back" data-a="go" data-tab="list">‹ 名單</button>
   <div class="row" style="margin:6px 0 12px"><div class="av">${esc(p.name.slice(0,1))}</div><div><div class="name" style="font-size:22px">${esc(p.name)}</div><div class="mut">${esc(p.cat)} · ${act?'主動聯絡，每 '+ivName(p.iv):'只記錄'}${p.last?' · 上次 '+md(p.last):''}</div></div></div>
+  ${p.memo?`<p class="mut" style="margin:0 0 10px">備註：${esc(p.memo)}</p>`:''}
   ${p.ask?`<div class="ask" style="margin-bottom:10px">下次可以問：${esc(p.ask)} <button class="s" style="margin-left:6px" data-a="clearAsk">問過了</button></div>`:''}
   <div class="gap" style="margin:0 0 6px"><button class="p" data-a="logFor" data-id="${p.id}">記一筆</button><button data-a="editPerson">編輯</button><button data-a="toggleMode">${act?'改為只記錄':'改為主動聯絡'}</button></div>
   <h2>聊過的事</h2>
@@ -165,6 +181,7 @@ function vEdit(){
   ${act?`<label>理想間隔</label><div class="chips">${IVS.map(v=>`<button class="chip ${e.iv===v[0]?'on':''}" data-a="setE" data-k="iv" data-v="${v[0]}">${v[1]}</button>`).join('')}</div>
   <label>上次聯絡日（選填）</label><input type="date" data-m="edit.last" value="${e.last||''}" max="${today()}">`:''}
   <label>下次可以問（選填）</label><input data-m="edit.ask" value="${esc(e.ask||'')}">
+  <label>備註（選填）</label><input data-m="edit.memo" value="${esc(e.memo||'')}" placeholder="哪個部門、怎麼認識的">
   <div class="gap"><button class="p w" data-a="saveEdit">儲存</button></div>
   ${e.id?'<div class="gap"><button class="d w" data-a="delPerson">刪除這個人</button></div>':''}`}
 
@@ -178,7 +195,7 @@ function vSet(){
 function vBulk(){
   const b=ui.bulk;
   let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次匯入</h1>
-  <p class="mut">一行一個人，第一欄是名字。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會變成第一筆紀錄。</p>
+  <p class="mut">一行一個人，第一欄是名字。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會放進備註。</p>
   <pre>Mei, 同事, 只記錄
 小安, 好友, 主動, 1個月, 2026-10-20
 媽媽, 家人, 主動, 2週, 喜歡聽我講工作的事</pre>
@@ -186,7 +203,7 @@ function vBulk(){
   <textarea data-m="bulk.text" id="bulkText" style="min-height:160px" placeholder="從試算表或記事本貼上">${esc(b.text)}</textarea>
   <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden>`;
   if(b.rows){
-    h+=`<h2>預覽：${b.rows.length} 人${b.dup?'，另有 '+b.dup+' 人已在名單中會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill ${r.mode==='active'?'':'m'}">${r.mode==='active'?'主動 · '+ivName(r.iv):'只記錄'}</span><div class="mut">${esc(r.cat)}${r.last?' · 上次 '+r.last:''}${r.notes.length?' · '+esc(r.notes[0].t):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
+    h+=`<h2>預覽：${b.rows.length} 人${b.dup?'，另有 '+b.dup+' 人已在名單中會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill ${r.mode==='active'?'':'m'}">${r.mode==='active'?'主動 · '+ivName(r.iv):'只記錄'}</span><div class="mut">${esc(r.cat)}${r.last?' · 上次 '+r.last:''}${r.memo?' · 備註：'+esc(r.memo):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 人</button>`:''}`}
   return h}
 
@@ -197,7 +214,7 @@ function parseBulk(text){
     if(!f.length)return;const name=f[0];
     if(/^(名字|姓名|name)$/i.test(name))return;
     if(seen.has(name.toLowerCase())){dup++;return}seen.add(name.toLowerCase());
-    const r={id:uid(),name,cat:'其他',mode:null,iv:30,last:null,ask:'',notes:[],skip:null};const extra=[];
+    const r={id:uid(),name,cat:'其他',mode:null,iv:30,last:null,ask:'',memo:'',notes:[],skip:null};const extra=[];
     f.slice(1).forEach(x=>{const k=x.replace(/\s/g,'');let m;
       if(CATS.includes(k))r.cat=k;
       else if(k==='朋友')r.cat='好友';
@@ -211,7 +228,7 @@ function parseBulk(text){
       else extra.push(x)});
     if(!r.mode)r.mode=r.cat==='同事'?'log':'active';
     if(r.last&&r.last>today())r.last=today();
-    if(extra.length)r.notes.push({d:r.last||today(),t:extra.join('，')});
+    if(extra.length)r.memo=extra.join('，');
     rows.push(r)});
   return{rows,dup}}
 
@@ -223,10 +240,13 @@ function render(){
   window.scrollTo(0,0)}
 
 const A={
-  go(d){ui.tab=d.tab;if(d.tab==='bulk')ui.bulk={text:'',rows:null};render()},
+  go(d){ui.tab=d.tab;ui.hq='';ui.doneId=null;if(d.tab==='bulk')ui.bulk={text:'',rows:null};render()},
   toggleAll(){ui.all=!ui.all;render()},
   open(d){ui.pid=d.id;ui.tab='person';render()},
-  done(d){const p=person(d.id);p.last=today();p.skip=null;save();toast('已記錄今天聯絡過 '+p.name);render()},
+  done(d){ui.doneId=d.id;ui.dn={t:''};render();const el=document.getElementById('dnT');if(el){el.scrollIntoView({block:'center'});el.focus()}},
+  doneSave(d){const p=person(ui.doneId);if(!p)return;const t=d.skip?'':ui.dn.t.trim();p.last=today();p.skip=null;if(t)p.notes.unshift({d:today(),t});save();ui.doneId=null;ui.dn={t:''};toast('已記錄今天聯絡過 '+p.name);render()},
+  doneCancel(){ui.doneId=null;render()},
+  hAdd(){const name=ui.hq.trim();if(!name)return;const p={id:uid(),name,cat:'同事',mode:'log',iv:30,last:null,ask:'',memo:'',notes:[],skip:null};db.people.push(p);save();ui.hq='';ui.draft=newDraft(p.id);ui.logQ='';ui.tab='log';toast('已新增 '+name+'（只記錄）');render()},
   skip(d){const p=person(d.id);p.skip=addDays(today(),7);save();toast('一週後再提醒');render()},
   logFor(d){ui.draft=newDraft(d.id);ui.logQ='';ui.tab='log';render()},
   pick(d){ui.draft.pid=ui.draft.pid===d.id?null:d.id;render()},
@@ -237,15 +257,15 @@ const A={
     if(!p.last||date>p.last)p.last=date;if(d.ask.trim())p.ask=d.ask.trim();p.skip=null;save();
     ui.draft=newDraft();ui.logQ='';ui.pid=p.id;ui.tab='person';toast('已儲存');render()},
   cat(d){ui.cat=d.c;render()},
-  newPerson(){ui.edit={id:null,name:'',cat:'好友',mode:'active',iv:30,last:'',ask:''};ui.tab='edit';render()},
-  editPerson(){const p=person(ui.pid);ui.edit={id:p.id,name:p.name,cat:p.cat,mode:p.mode,iv:p.iv,last:p.last||'',ask:p.ask||''};ui.tab='edit';render()},
+  newPerson(){ui.edit={id:null,name:'',cat:'好友',mode:'active',iv:30,last:'',ask:'',memo:''};ui.tab='edit';render()},
+  editPerson(){const p=person(ui.pid);ui.edit={id:p.id,name:p.name,cat:p.cat,mode:p.mode,iv:p.iv,last:p.last||'',ask:p.ask||'',memo:p.memo||''};ui.tab='edit';render()},
   setE(d){ui.edit[d.k]=d.k==='iv'?Number(d.v):d.v;render()},
   cancelEdit(){ui.tab=ui.edit.id?'person':'list';render()},
   saveEdit(){const e=ui.edit,name=e.name.trim();if(!name)return toast('輸入名字');
     if(db.people.some(p=>p.id!==e.id&&p.name.toLowerCase()===name.toLowerCase()))return toast('名單裡已經有這個名字');
     const last=e.last&&e.last<=today()?e.last:null;
-    if(e.id){const p=person(e.id);Object.assign(p,{name,cat:e.cat,mode:e.mode,iv:e.iv,ask:e.ask.trim()});if(e.mode==='active'&&last)p.last=last}
-    else{const p={id:uid(),name,cat:e.cat,mode:e.mode,iv:e.iv,last:e.mode==='active'?last:null,ask:e.ask.trim(),notes:[],skip:null};db.people.push(p);ui.pid=p.id}
+    if(e.id){const p=person(e.id);Object.assign(p,{name,cat:e.cat,mode:e.mode,iv:e.iv,ask:e.ask.trim(),memo:(e.memo||'').trim()});if(e.mode==='active'&&last)p.last=last}
+    else{const p={id:uid(),name,cat:e.cat,mode:e.mode,iv:e.iv,last:e.mode==='active'?last:null,ask:e.ask.trim(),memo:(e.memo||'').trim(),notes:[],skip:null};db.people.push(p);ui.pid=p.id}
     save();ui.tab='person';toast('已儲存');render()},
   delPerson(){const p=person(ui.edit.id);if(!confirm('刪除 '+p.name+' 和所有紀錄？這無法復原。'))return;db.people=db.people.filter(x=>x.id!==p.id);save();ui.tab='list';render()},
   toggleMode(){const p=person(ui.pid);p.mode=p.mode==='active'?'log':'active';save();toast(p.mode==='active'?'已改為主動聯絡，每 '+ivName(p.iv):'已改為只記錄');render()},
@@ -271,12 +291,13 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
 document.addEventListener('input',e=>{const el=e.target;
   if(el.dataset.m){const[o,k]=el.dataset.m.split('.');ui[o][k]=el.value;if(o==='bulk')ui.bulk.rows=null}
   if(el.dataset.i==='logQ'){ui.logQ=el.value;document.getElementById('chips').innerHTML=chipsHtml()}
+  if(el.dataset.i==='hq'){ui.hq=el.value;ui.doneId=null;document.getElementById('hres').innerHTML=ui.hq.trim()?searchBody():weekBody()}
   if(el.dataset.i==='q'){ui.q=el.value;document.getElementById('rows').innerHTML=rowsHtml()}});
 document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0];if(!f)return;
   const rd=new FileReader();
   if(el.id==='impFile'){rd.onload=()=>{try{const j=JSON.parse(rd.result);if(j.app!=='keep-in-touch'||!j.data||!Array.isArray(j.data.people))throw 0;
       if(!confirm('匯入 '+j.data.people.length+' 人，取代目前手機上的 '+db.people.length+' 人？'))return;
-      db.people=j.data.people.map(p=>({id:p.id||uid(),name:String(p.name||''),cat:CATS.includes(p.cat)?p.cat:'其他',mode:p.mode==='active'?'active':'log',iv:Number(p.iv)||30,last:p.last||null,ask:p.ask||'',notes:Array.isArray(p.notes)?p.notes.map(n=>({d:String(n.d||today()),t:String(n.t||'')})):[],skip:p.skip||null})).filter(p=>p.name);
+      db.people=j.data.people.map(p=>({id:p.id||uid(),name:String(p.name||''),cat:CATS.includes(p.cat)?p.cat:'其他',mode:p.mode==='active'?'active':'log',iv:Number(p.iv)||30,last:p.last||null,ask:p.ask||'',memo:p.memo||'',notes:Array.isArray(p.notes)?p.notes.map(n=>({d:String(n.d||today()),t:String(n.t||'')})):[],skip:p.skip||null})).filter(p=>p.name);
       save();toast('已匯入');ui.tab='list';render()}catch(x){alert('這不是「保持聯絡」的備份檔。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
