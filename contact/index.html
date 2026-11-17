@@ -67,13 +67,13 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/18';
+const VER='11/17 d';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let db=load();
-let ui={tab:'log',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
+let ui={en:null,tab:'log',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
 
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.people))return d}catch(e){}return{people:[],lastExport:null}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -175,7 +175,15 @@ function vPerson(){
   ${p.ask?`<div class="ask" style="margin-bottom:10px">下次可以問：${esc(p.ask)} <button class="s" style="margin-left:6px" data-a="clearAsk">問過了</button></div>`:''}
   <div class="gap" style="margin:0 0 6px"><button class="p" data-a="logFor" data-id="${p.id}">補記（選日期）</button><button data-a="editPerson">編輯</button><button data-a="toggleMode">${act?'改為只記錄':'改為主動聯絡'}</button></div>
   <h2>聊過的事</h2>
-  <div class="card">${p.notes.length?p.notes.map((n,i)=>`<div class="note"><div class="row sp"><span class="mut">${n.d}</span><button class="s d" style="min-height:28px;border:none;padding:0 4px" data-a="delNote" data-i="${i}">刪除</button></div>${esc(n.t)}</div>`).join(''):'<div class="mut">還沒有紀錄</div>'}</div>`}
+  <div class="card">${p.notes.length?p.notes.map((n,i)=>`<div class="note"><div class="row sp"><span class="mut">${n.d}</span><span><button class="s" style="min-height:28px;border:none;padding:0 8px" data-a="editNote" data-i="${i}">修改</button><button class="s d" style="min-height:28px;border:none;padding:0 4px" data-a="delNote" data-i="${i}">刪除</button></span></div>${esc(n.t)}</div>`).join(''):'<div class="mut">還沒有紀錄</div>'}</div>`}
+
+function vEditNote(){const e=ui.en,p=e&&person(e.pid);if(!p||!p.notes[e.i]){ui.tab='list';return vList()}
+  return`<button class="back" data-a="cancelNote">‹ ${esc(p.name)}</button><h1>修改紀錄</h1>
+  <label>聊了什麼</label><textarea data-m="en.t" id="enT" style="min-height:120px">${esc(e.t)}</textarea>
+  <label>日期</label><input type="date" data-m="en.d" value="${e.d}" max="${today()}">
+  <div class="gap"><button class="p w" data-a="saveNote">儲存修改</button></div>
+  <div class="gap"><button class="w" data-a="cancelNote">取消</button></div>
+  <div class="gap"><button class="d w" data-a="delNoteHere">刪除這筆紀錄</button></div>`}
 
 function vEdit(){
   const e=ui.edit,act=e.mode==='active';
@@ -307,10 +315,10 @@ function vImp(){const m=ui.imp;if(!m){ui.tab='set';return vSet()}const d=m.diff,
   <div class="card"><div class="chips"><span class="pill">新增 ${d.add.length}</span><span class="pill">修改 ${d.chg.length}</span><span class="pill" style="background:none;border:1px solid var(--danger);color:var(--danger)">刪除 ${d.del.length}</span><span class="pill" style="background:none;border:1px solid var(--line);color:var(--mut)">不變 ${d.same}</span></div>${none?'<p class="mut" style="margin-bottom:0">檔案內容和手機上的資料相同。</p>':''}</div>
   ${impList('會刪除',d.del,1)}${impList('會修改',d.chg)}${impList('會新增',d.add)}
   <div class="gap"><button class="p w" data-a="impApply">確認取代</button></div><div class="gap"><button class="w" data-a="go" data-tab="set">取消</button></div>`}
-const VIEWS={imp:vImp,week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,set:vSet,bulk:vBulk};
+const VIEWS={editNote:vEditNote,imp:vImp,week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,set:vSet,bulk:vBulk};
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
-  const cur=({person:'list',edit:'list',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
+  const cur=({person:'list',edit:'list',editNote:'list',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
   document.getElementById('nav').innerHTML=[['log','＋','記一筆'],['week','◎','本週'],['list','☰','名單'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
   window.scrollTo(0,0)}
 
@@ -345,6 +353,12 @@ const A={
   delPerson(){const p=person(ui.edit.id);if(!confirm('刪除 '+p.name+' 和所有紀錄？這無法復原。'))return;db.people=db.people.filter(x=>x.id!==p.id);save();ui.tab='list';render()},
   toggleMode(){const p=person(ui.pid);p.mode=p.mode==='active'?'log':'active';save();toast(p.mode==='active'?'已改為主動聯絡，每 '+ivName(p.iv):'已改為只記錄');render()},
   clearAsk(){person(ui.pid).ask='';save();render()},
+  editNote(d){const p=person(ui.pid),n=p&&p.notes[Number(d.i)];if(!n)return;ui.en={pid:p.id,i:Number(d.i),d:n.d,t:n.t};ui.tab='editNote';render()},
+  cancelNote(){ui.en=null;ui.tab='person';render()},
+  saveNote(){const e=ui.en,p=e&&person(e.pid),n=p&&p.notes[e.i];if(!n)return;const t=e.t.trim();if(!t)return toast('內容不能是空的');
+    const d=normDate(e.d)||n.d,dd=d>today()?today():d;n.t=t;n.d=dd;p.notes.sort((a,b)=>b.d.localeCompare(a.d));if(!p.last||dd>p.last)p.last=dd;
+    save();ui.en=null;ui.pid=p.id;ui.tab='person';toast('已修改');render()},
+  delNoteHere(){const e=ui.en,p=e&&person(e.pid);if(!p||!p.notes[e.i])return;if(!confirm('刪除這筆紀錄？刪除後無法復原。'))return;p.notes.splice(e.i,1);save();ui.en=null;ui.tab='person';toast('已刪除');render()},
   delNote(d){const p=person(ui.pid);if(!confirm('刪除這筆紀錄？'))return;p.notes.splice(Number(d.i),1);save();render()},
   mic(d){if(!SR)return;const el=document.getElementById(d.t);const r=new SR();r.lang='zh-TW';r.interimResults=false;
     r.onresult=e=>{const s=e.results[0][0].transcript;el.value=(el.value?el.value+' ':'')+s;el.dispatchEvent(new Event('input',{bubbles:true}))};
