@@ -74,7 +74,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17 b';
+const VER='11/17 c';
 const KEY='whattodo.v1';
 const CN={food:'吃的',act:'週末活動'};
 const DIM={
@@ -122,7 +122,7 @@ function vDraw(){
     <div class="gap">${mapBtn(it)}<button class="s" data-a="rate" data-id="${it.id}" data-v="like">喜歡</button><button class="s" data-a="rate" data-id="${it.id}" data-v="ok">普通</button><button class="s d" data-a="rate" data-id="${it.id}" data-v="del">移除</button><button class="s" data-a="rate" data-id="${it.id}" data-v="none">沒去</button></div></div>`});
   if(ui.round)return h+vResult();
   h+=catSeg('cat',ui.cat);
-  if(!db.items.some(x=>x.cat===ui.cat))return h+`<div class="card empty"><p class="name">先放進幾個選項</p><p class="mut">把常去的、想試的都丟進選項池，之後交給它決定。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newItem">新增選項</button><button data-a="go" data-tab="bulk">批次匯入</button></div></div>`;
+  if(!db.items.some(x=>x.cat===ui.cat))return h+`<div class="card empty"><p class="name">先放進幾個選項</p><p class="mut">把常去的、想試的都丟進選項池，之後交給它決定。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newItem">新增選項</button><button data-a="go" data-tab="bulk">批次新增</button></div></div>`;
   dims(ui.cat).forEach(d=>{if(!d.o.length)return;const sel=ui.f[d.k]||[];h+=`<label>${d.n}</label><div class="chips">${d.o.map(o=>`<button class="chip ${sel.includes(o)?'on':''}" data-a="filt" data-k="${d.k}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`});
   const n=pool().length;
   h+=`<p class="mut" style="margin-top:14px">條件不選就是都可以；選了的條件，只會抽到有貼那個標籤的選項。符合條件的有 ${n} 個。</p><button class="p w big" data-a="draw">${n?'抽一個':'沒有符合的選項'}</button>`;
@@ -160,18 +160,18 @@ function vEdit(){
 function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
-  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個選項，請用下面的「批次匯入選項」。</p></div>
-  <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="新增地點" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增</button></div></div>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份（取代全部）</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個選項，請用下面的「批次新增選項」。</p></div>
+  <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="地點名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增地點</button></div></div>
   <h2>自訂類別</h2>${db.cats.map(c=>`<div class="card"><div class="row sp"><span class="name">${esc(c.name)}</span><button class="s d" data-a="delCat" data-id="${c.id}">刪除類別</button></div><div class="chips" style="margin-top:8px">${c.tags.map((t,i)=>`<button class="chip" data-a="delTag" data-id="${c.id}" data-i="${i}">${esc(t)} ✕</button>`).join('')||'<span class="mut">還沒有標籤</span>'}</div><div class="row" style="margin-top:10px"><input id="tag_${c.id}" placeholder="新增標籤" autocomplete="off"><button class="p" style="flex:none" data-a="addTag" data-id="${c.id}">新增</button></div></div>`).join('')}
-  <div class="card"><p class="mut" style="margin-top:0">想抽別的東西，例如看什麼、今晚做什麼，可以新增類別。</p><div class="row"><input id="newCat" placeholder="類別名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addCat">新增</button></div></div>
+  <div class="card"><p class="mut" style="margin-top:0">想抽別的東西，例如看什麼、今晚做什麼，可以新增類別。</p><div class="row"><input id="newCat" placeholder="類別名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addCat">新增類別</button></div></div>
   <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
-  <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多選項。</p><button data-a="go" data-tab="bulk">批次匯入選項</button></div>
+  <h2>一次新增很多</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多選項。</p><button data-a="go" data-tab="bulk">批次新增選項</button></div>
   <p class="mut" style="text-align:center">${allCats().map(c=>c.name+' '+db.items.filter(x=>x.cat===c.id).length+' 個').join(' · ')}</p>`}
 
 function vBulk(){
   const b=ui.bulk;
-  let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次匯入</h1>
-  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次匯入（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名稱已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的選項會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>不要有</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>類別寫法</td><td>吃、活動，或自訂類別名稱</td><td>吃的、週末活動，或自訂類別名稱</td></tr><tr><td>入口</td><td>設定 → 批次匯入選項</td><td>設定 → 匯入備份</td></tr></table></div>
+  let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次新增</h1>
+  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次新增（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名稱已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的選項會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>不要有（第一列是「名稱」會自動略過）</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>類別寫法</td><td>吃、活動，或自訂類別名稱</td><td>吃的、週末活動，或自訂類別名稱</td></tr><tr><td>入口</td><td>設定 → 批次新增選項</td><td>設定 → 匯入備份</td></tr></table></div>
   <p class="mut">一行一個選項，第一欄是名稱。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會放進備註。</p>
   <pre>巷口越南河粉, 吃, 內用, 一般, 單人, 市區
 週五火鍋, 吃, 內用, 犒賞, 多人
@@ -183,7 +183,7 @@ function vBulk(){
   <textarea data-m="bulk.text" style="min-height:160px" placeholder="從試算表或記事本貼上">${esc(b.text)}</textarea>
   <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" hidden>`;
   if(b.rows){
-    h+=`<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${esc(catName(r.cat))}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}${r.url?' · 有地圖連結':''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
+    h+=`${b.info?'<p class="mut">'+esc(b.info)+'</p>':''}<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${esc(catName(r.cat))}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}${r.url?' · 有地圖連結':''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 個</button>`:''}`}
   h+=`<h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
   <pre>名稱,類別,狀態,地點,區域,方式,價位,人數,時間,場地,預約,體力,標籤,備註,地圖,上次選擇日,待評分,已預約</pre>
@@ -195,6 +195,8 @@ function vBulk(){
 
 function norm(s){return s.replace(/\s/g,'')}
 function parseBulk(text,defCat){
+  {const first=text.replace(/^\ufeff/,'').split(/\r?\n/).find(l=>l.trim())||'',hc=first.split(/[\t,]/).map(x=>x.trim().replace(/^"|"$/g,''));
+   if(/^(名稱|名字|name)$/i.test(hc[0])&&hc.filter(c=>DH.includes(c)).length>=3)return{rows:[],dup:0,info:'這份是「匯出備份」的格式，請改到「設定 → 匯入備份」匯入（會整份取代）。'}}
   const rows=[];let dup=0;const seen=new Set(db.items.map(x=>x.cat+'|'+x.name.toLowerCase()));const cats=allCats();
   const alias={'一人':'單人','一個人':'單人','獨自':'單人','1人':'單人','兩個人':'兩人','二人':'兩人','2人':'兩人','雙人':'兩人','約人':'多人','朋友':'多人','多人聚餐':'多人','便宜':'省','平價':'省','普通價':'一般','貴':'犒賞','高價':'犒賞','外帶':'外送','需預約':'要預約','預約':'要預約','不用預約':'免預約','兩小時內':'2小時內','2小時':'2小時內','一整天':'整天','全天':'整天','半日':'半天','戶內':'室內','戶外活動':'戶外','累':'耗體力','郊區':'非市區','市中心':'市區'};
   text.split(/\r?\n/).forEach(raw=>{
@@ -238,7 +240,7 @@ function backupCsv(){const rows=[DH];db.items.forEach(it=>{const ds=dims(it.cat)
     if(hd==='上次選擇日')return it.last||'';if(hd==='待評分')return it.pend?'是':'';if(hd==='已預約')return it.booked?'是':'';
     const d=ds.find(x=>x.n===hd);return d?(it.t[d.k]||[]).join('、'):''}))});return toCsv(rows)}
 function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith('{'))return JSON.parse(text);
-  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);if(h[0]!=='名稱'||col('類別')<0)throw 0;
+  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);const miss=['名稱','類別'].filter(n=>col(n)<0);if(miss.length)throw new Error('標題列不符，缺少欄位：'+miss.join('、')+'\n\n匯入備份的第一列必須是：\n'+DH.join(',')+'\n\n你的第一列是：\n'+h.join(',')+'\n\n如果只是想新增幾個選項，請改用「批次新增選項」。');
   const g=(r,n)=>{const i=col(n);return i<0?'':String(r[i]||'').trim()},yes=v=>/^(是|y|yes|true|1)$/i.test(v);
   const cats=db.cats.map(c=>({id:c.id,name:c.name,tags:c.tags.slice()})),locs=db.locs.slice(),items=[];
   rows.slice(1).forEach(r=>{const name=g(r,'名稱');if(!name)return;const cn=g(r,'類別');let cat=cn===CN.act?'act':(!cn||cn===CN.food)?'food':null;
@@ -314,7 +316,7 @@ const A={
     save();ui.round=null;toast('已匯入');ui.tab='pool';render()},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
-  bulkPreview(){const r=parseBulk(ui.bulk.text,ui.poolCat);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
+  bulkPreview(){const r=parseBulk(ui.bulk.text,ui.poolCat);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;ui.bulk.info=r.info||'';render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
   bulkCommit(){const n=ui.bulk.rows.length;db.items.push(...ui.bulk.rows);save();ui.bulk={text:'',rows:null};ui.tab='pool';toast('已匯入 '+n+' 個');render()}
 };
 
@@ -342,7 +344,7 @@ document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0]
         const w=F.filter(f=>String(o[f[0]]||'')!==String(it[f[0]]||'')).map(f=>f[1]);if(tagLine(o)!==out.tags[k])w.unshift('標籤：'+(tagLine(o)||'無')+' → '+(out.tags[k]||'無'));
         if(w.length)diff.chg.push({n:it.name,d:w.join('、')});else diff.same++});
       old.forEach((o,key)=>{if(!seen.has(key))diff.del.push({n:o.name,d:key.split('｜')[0]})});
-      ui.imp={out,diff,count:out.items.length,cur:db.items.length};ui.tab='imp';render()}catch(x){alert('這不是「做什麼」的備份檔。')}};rd.readAsText(f)}
+      ui.imp={out,diff,count:out.items.length,cur:db.items.length};ui.tab='imp';render()}catch(x){alert(x&&x.message&&x.message.startsWith('標題列')?x.message:'讀不出這個檔案。請選「匯出備份」產生的 CSV 檔，或在批次新增頁看正確格式。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
 

@@ -67,7 +67,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17 b';
+const VER='11/17 c';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
@@ -96,7 +96,7 @@ function lastNote(p){return p.notes&&p.notes.length?p.notes[0]:null}
 
 function dueCard(p){const n=lastNote(p);
   const act=ui.doneId===p.id?`<label>聊了什麼（選填）</label><input id="dnT" data-m="dn.t" value="${esc(ui.dn.t)}" placeholder="寫一句就好" autocomplete="off"><div class="gap"><button class="p s" data-a="doneSave">儲存</button><button class="s" data-a="doneSave" data-skip="1">不寫，直接完成</button><button class="s" data-a="doneCancel">取消</button></div>`
-    :`<div class="gap"><button class="p s" data-a="done" data-id="${p.id}">已聯絡</button><button class="s" data-a="logFor" data-id="${p.id}">記一筆</button><button class="s" data-a="skip" data-id="${p.id}">這週跳過</button></div>`;
+    :`<div class="gap"><button class="p s" data-a="done" data-id="${p.id}">已聯絡</button><button class="s" data-a="logFor" data-id="${p.id}">補記（選日期）</button><button class="s" data-a="skip" data-id="${p.id}">這週跳過</button></div>`;
   return`<div class="card"><div class="row sp"><span class="name" data-a="open" data-id="${p.id}">${esc(p.name)}</span><span class="pill">${overLabel(p)}</span></div>
     <div class="mut">${esc(p.cat)} · 理想每 ${ivName(p.iv)}</div>
     ${p.ask?`<div class="ask">下次可以問：${esc(p.ask)}</div>`:''}
@@ -121,11 +121,11 @@ function searchBody(){
     ${p.ask?`<div class="ask">下次可以問：${esc(p.ask)}</div>`:''}
     ${p.memo?`<div class="mut" style="margin-top:6px">備註：${esc(p.memo)}</div>`:''}
     ${ns.length?ns.map(n=>`<div style="margin-top:6px"><span class="mut">${md(n.d)}</span> ${esc(n.t)}</div>`).join(''):'<div class="mut" style="margin-top:6px">還沒有紀錄</div>'}
-    <div class="gap"><button class="p s" data-a="logFor" data-id="${p.id}">記一筆</button><button class="s" data-a="open" data-id="${p.id}">看全部</button></div></div>`});
+    <div class="gap"><button class="p s" data-a="logFor" data-id="${p.id}">補記（選日期）</button><button class="s" data-a="open" data-id="${p.id}">看全部</button></div></div>`});
   if(!db.people.some(p=>p.name.toLowerCase()===q))h+=`<button class="w" data-a="hAdd">＋ 新增「${esc(raw)}」並記一筆</button>`;
   return h}
 function vWeek(){
-  if(!db.people.length)return`<h1>保持聯絡</h1><div class="card empty"><p class="name">先建立你的名單</p><p class="mut">加入想保持聯絡的人，或只是想記住聊過什麼的人。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newPerson">新增一個人</button><button data-a="go" data-tab="bulk">批次匯入</button></div></div>`;
+  if(!db.people.length)return`<h1>保持聯絡</h1><div class="card empty"><p class="name">先建立你的名單</p><p class="mut">加入想保持聯絡的人，或只是想記住聊過什麼的人。</p><div class="gap" style="justify-content:center"><button class="p" data-a="newPerson">新增一個人</button><button data-a="go" data-tab="bulk">批次新增</button></div></div>`;
   return`<h1>保持聯絡</h1><input id="hq" data-i="hq" placeholder="搜尋名字或聊過的事" value="${esc(ui.hq)}" autocomplete="off"><div id="hres" style="margin-top:12px">${ui.hq.trim()?searchBody():weekBody()}</div>`}
 
 function chipsHtml(){
@@ -172,7 +172,7 @@ function vPerson(){
   <div class="row" style="margin:6px 0 12px"><div class="av">${esc(p.name.slice(0,1))}</div><div><div class="name" style="font-size:22px">${esc(p.name)}</div><div class="mut">${esc(p.cat)} · ${act?'主動聯絡，每 '+ivName(p.iv):'只記錄'}${p.last?' · 上次 '+md(p.last):''}</div></div></div>
   ${p.memo?`<p class="mut" style="margin:0 0 10px">備註：${esc(p.memo)}</p>`:''}
   ${p.ask?`<div class="ask" style="margin-bottom:10px">下次可以問：${esc(p.ask)} <button class="s" style="margin-left:6px" data-a="clearAsk">問過了</button></div>`:''}
-  <div class="gap" style="margin:0 0 6px"><button class="p" data-a="logFor" data-id="${p.id}">記一筆</button><button data-a="editPerson">編輯</button><button data-a="toggleMode">${act?'改為只記錄':'改為主動聯絡'}</button></div>
+  <div class="gap" style="margin:0 0 6px"><button class="p" data-a="logFor" data-id="${p.id}">補記（選日期）</button><button data-a="editPerson">編輯</button><button data-a="toggleMode">${act?'改為只記錄':'改為主動聯絡'}</button></div>
   <h2>聊過的事</h2>
   <div class="card">${p.notes.length?p.notes.map((n,i)=>`<div class="note"><div class="row sp"><span class="mut">${n.d}</span><button class="s d" style="min-height:28px;border:none;padding:0 4px" data-a="delNote" data-i="${i}">刪除</button></div>${esc(n.t)}</div>`).join(''):'<div class="mut">還沒有紀錄</div>'}</div>`}
 
@@ -193,24 +193,29 @@ function vEdit(){
 function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
-  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個人，請用下面的「批次匯入名單」。</p></div>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份（取代全部）</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個人，請用下面的「批次新增名單」。</p></div>
   <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
-  <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多人。</p><button data-a="go" data-tab="bulk">批次匯入名單</button></div>
+  <h2>一次新增很多</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多人。</p><button data-a="go" data-tab="bulk">批次新增名單</button></div>
   <p class="mut" style="text-align:center">共 ${db.people.length} 人 · ${db.people.reduce((s,p)=>s+p.notes.length,0)} 筆紀錄</p>`}
 
 function vBulk(){
   const b=ui.bulk;
-  let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次匯入</h1>
-  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次匯入（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名字已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的人會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>不要有</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>對話紀錄</td><td>不能匯入，多的字只會進備註</td><td>可以，一筆紀錄一列</td></tr><tr><td>入口</td><td>設定 → 批次匯入名單</td><td>設定 → 匯入備份</td></tr></table></div>
+  let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次新增</h1>
+  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次新增（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名字已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的人會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>可有可無。有的話依欄位名稱辨識</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>對話紀錄</td><td>有標題列時可以（附註日期＋附註內容）</td><td>可以，一筆紀錄一列</td></tr><tr><td>入口</td><td>設定 → 批次新增名單</td><td>設定 → 匯入備份</td></tr></table></div>
   <p class="mut">一行一個人，第一欄是名字。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會放進備註。</p>
   <pre>Mei, 同事, 只記錄
 小安, 好友, 主動, 1個月, 2026-10-20
 媽媽, 家人, 主動, 2週, 喜歡聽我講工作的事</pre>
   <p class="mut">可用的字：分類（${CATS.join('、')}）、模式（主動、只記錄）、間隔（2週、1個月、3個月、半年）、日期（2026-10-20）。沒寫模式時，同事預設只記錄，其他預設主動聯絡每月一次。</p>
+  <h2>有標題列時可用的欄位名稱</h2><div class="card"><p class="mut" style="margin-top:0">第一列寫欄位名稱，順序不拘，名字欄必填，其他都可以省略。逗號或 Tab 分隔都可以。</p>
+  <p class="mut">名字（名稱、姓名）<br>分類（類別）：${CATS.join('、')}<br>模式：主動（active）、只記錄（log）<br>間隔：2週、1個月、3個月、半年，或寫天數<br>上次聯絡日（上次聯絡）<br>附註日期、附註內容：會變成一筆有日期的對話紀錄<br>下次可以問（詢問）<br>備註（備忘）<br>略過：填日期，到那天前不提醒<br>認不出的欄位，會放進備註。同一個名字有好幾列，會合併成一個人的多筆紀錄。</p>
+  <pre>名字,分類,模式,間隔,附註日期,附註內容
+先平,舊識,主動,半年,2026-11-16,已經簽下 Bain
+媽媽,家人,主動,2週,2026-11-16,12月要去日本玩</pre></div>
   <textarea data-m="bulk.text" id="bulkText" style="min-height:160px" placeholder="從試算表或記事本貼上">${esc(b.text)}</textarea>
   <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" hidden>`;
   if(b.rows){
-    h+=`<h2>預覽：${b.rows.length} 人${b.dup?'，另有 '+b.dup+' 人已在名單中會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill ${r.mode==='active'?'':'m'}">${r.mode==='active'?'主動 · '+ivName(r.iv):'只記錄'}</span><div class="mut">${esc(r.cat)}${r.last?' · 上次 '+r.last:''}${r.memo?' · 備註：'+esc(r.memo):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
+    h+=`${b.info?'<p class="mut">'+esc(b.info)+'</p>':''}<h2>預覽：${b.rows.length} 人${b.dup?'，另有 '+b.dup+' 人已在名單中會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill ${r.mode==='active'?'':'m'}">${r.mode==='active'?'主動 · '+ivName(r.iv):'只記錄'}</span><div class="mut">${esc(r.cat)}${r.last?' · 上次 '+r.last:''}${r.notes.length?' · '+r.notes.length+' 筆紀錄':''}${r.memo?' · 備註：'+esc(r.memo):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 人</button>`:''}`}
   h+=`<h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
   <pre>名字,分類,模式,間隔,上次聯絡日,下次可以問,備註,紀錄日期,紀錄內容</pre>
@@ -221,7 +226,34 @@ Mei,同事,只記錄,1個月,,,,,</pre>
   <p class="mut" style="margin-bottom:0">最不會出錯的做法：先在「設定」匯出備份，用試算表改完再匯入。</p></div>`;
   return h}
 
+const HA={name:/^(名字|名稱|姓名|name)$/i,cat:/^(分類|類別|category)$/i,mode:/^(模式|mode)$/i,iv:/^(間隔|間隔天數|interval)$/i,last:/^(上次聯絡|上次聯絡日|last)$/i,nd:/^(附註日期|紀錄日期|記錄日期|對話日期)$/,nt:/^(附註內容|附註|紀錄內容|記錄內容|對話內容)$/,ask:/^(詢問|下次可以問|ask)$/i,memo:/^(備註|備忘|memo)$/i,skip:/^(略過|跳過|skip)$/i};
+const HN={name:'名字',cat:'分類',mode:'模式',iv:'間隔',last:'上次聯絡日',nd:'附註日期',nt:'附註內容',ask:'下次可以問',memo:'備註',skip:'略過'};
+function bulkHeader(text){const first=text.replace(/^\ufeff/,'').split(/\r?\n/).find(l=>l.trim());if(!first)return null;
+  const d=first.includes('\t')?'\t':',',cells=first.split(d).map(s=>s.trim().replace(/^"|"$/g,'')),map={};
+  cells.forEach((c,i)=>{for(const k in HA)if(map[k]===undefined&&HA[k].test(c)){map[k]=i;return}});
+  return map.name!==undefined&&Object.keys(map).length>=2?{d,cells,map}:null}
+function ivOf(s){s=String(s).replace(/\s/g,'');const f=IVS.find(v=>v[1].replace(/\s/g,'')===s);if(f)return f[0];
+  if(/^(兩週|二週)$/.test(s))return 14;if(/^(一個月|每月)$/.test(s))return 30;if(/^(三個月|一季)$/.test(s))return 90;if(/^(6個月|六個月)$/.test(s))return 180;
+  const n=parseInt(s);return n>0?n:30}
+function parseBulkHeader(text,H){
+  const rows=[],byName=new Map(),seen=new Set(db.people.map(p=>p.name.toLowerCase())),dupN=new Set();
+  const all=H.d===','?parseCsv(text):text.replace(/^\ufeff/,'').split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split('\t'));
+  const g=(r,k)=>H.map[k]===undefined?'':String(r[H.map[k]]||'').trim(),used=new Set(Object.values(H.map));
+  const extraCols=H.cells.map((c,i)=>[c,i]).filter(([c,i])=>c&&!used.has(i));
+  all.slice(1).forEach(r=>{const name=g(r,'name');if(!name)return;const key=name.toLowerCase();let p=byName.get(key);
+    if(!p){if(seen.has(key)){dupN.add(key);return}
+      const cv=g(r,'cat'),cat=CATS.includes(cv)?cv:cv==='朋友'?'好友':'其他',mv=g(r,'mode');
+      const mode=/主動|active/i.test(mv)?'active':/只記|只紀|記錄|紀錄|被動|log|passive/i.test(mv)?'log':(cat==='同事'?'log':'active');
+      let last=normDate(g(r,'last'))||null;if(last&&last>today())last=today();
+      const sk=normDate(g(r,'skip')),ex=[...extraCols.map(([c,i])=>String(r[i]||'').trim()?c+'：'+String(r[i]).trim():'').filter(Boolean),...r.slice(H.cells.length).map(x=>String(x).trim()).filter(Boolean)];
+      p={id:uid(),name,cat,mode,iv:g(r,'iv')?ivOf(g(r,'iv')):30,last,ask:g(r,'ask'),memo:[g(r,'memo'),...ex].filter(Boolean).join('，'),notes:[],skip:sk&&sk>today()?sk:null};
+      byName.set(key,p);rows.push(p)}
+    const t=g(r,'nt');if(t){let d=normDate(g(r,'nd'))||p.last||today();if(d>today())d=today();p.notes.push({d,t});if(!p.last||d>p.last)p.last=d}});
+  rows.forEach(p=>p.notes.sort((a,b)=>b.d.localeCompare(a.d)));
+  const known=Object.keys(H.map).map(k=>HN[k]),info='已辨識標題列：'+known.join('、')+(extraCols.length?'。沒辨識的欄位會放進備註：'+extraCols.map(x=>x[0]).join('、'):'');
+  return{rows,dup:dupN.size,info}}
 function parseBulk(text){
+  const H=bulkHeader(text);if(H)return parseBulkHeader(text,H);
   const rows=[];let dup=0;const seen=new Set(db.people.map(p=>p.name.toLowerCase()));
   text.split(/\r?\n/).forEach(line=>{
     const f=line.split(/[\t,，、;；]/).map(s=>s.trim().replace(/^"|"$/g,'')).filter(Boolean);
@@ -259,7 +291,7 @@ const CH=['名字','分類','模式','間隔','上次聯絡日','下次可以問
 function backupCsv(){const rows=[CH];db.people.forEach(p=>{const b=[p.name,p.cat,p.mode==='active'?'主動聯絡':'只記錄',ivName(p.iv),p.last||'',p.ask||'',p.memo||''];
   if(p.notes.length)p.notes.forEach(n=>rows.push([...b,n.d,n.t]));else rows.push([...b,'',''])});return toCsv(rows)}
 function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith('{'))return JSON.parse(text);
-  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);if(h[0]!=='名字'||col('紀錄內容')<0)throw 0;
+  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);const miss=CH.filter(n=>col(n)<0);if(miss.length)throw new Error('標題列不符，缺少欄位：'+miss.join('、')+'\n\n匯入備份的第一列必須是：\n'+CH.join(',')+'\n\n你的第一列是：\n'+h.join(',')+'\n\n如果只是想新增幾個人，請改用「批次新增名單」，它認得更多欄位名稱。');
   const g=(r,n)=>{const i=col(n);return i<0?'':String(r[i]||'').trim()},map=new Map();
   rows.slice(1).forEach(r=>{const name=g(r,'名字');if(!name)return;let q=map.get(name);
     if(!q){const ivs=g(r,'間隔').replace(/\s/g,''),f=IVS.find(v=>v[1].replace(/\s/g,'')===ivs);
@@ -325,7 +357,7 @@ const A={
   impApply(){if(!ui.imp)return;db.people=ui.imp.people;ui.imp=null;save();toast('已匯入');ui.tab='list';render()},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
-  bulkPreview(){const r=parseBulk(ui.bulk.text);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
+  bulkPreview(){const r=parseBulk(ui.bulk.text);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;ui.bulk.info=r.info||'';render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
   bulkCommit(){const n=ui.bulk.rows.length;db.people.push(...ui.bulk.rows);save();ui.bulk={text:'',rows:null};ui.tab='list';toast('已匯入 '+n+' 人');render()}
 };
 
@@ -349,7 +381,7 @@ document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0]
         const w=F.filter(f=>String(o[f[0]]||'')!==String(p[f[0]]||'')).map(f=>f[1]);if(JSON.stringify(o.notes.map(n=>[n.d,n.t]))!==JSON.stringify(p.notes.map(n=>[n.d,n.t])))w.push('紀錄 '+o.notes.length+' → '+p.notes.length+' 筆');
         if(w.length)diff.chg.push({n:p.name,d:w.join('、')});else diff.same++});
       db.people.forEach(o=>{if(!seen.has(o.name))diff.del.push({n:o.name,d:o.cat+(o.notes.length?' · '+o.notes.length+' 筆紀錄會一起刪除':'')})});
-      ui.imp={people:np,diff,count:np.length,cur:db.people.length};ui.tab='imp';render()}catch(x){alert('這不是「保持聯絡」的備份檔。')}};rd.readAsText(f)}
+      ui.imp={people:np,diff,count:np.length,cur:db.people.length};ui.tab='imp';render()}catch(x){alert(x&&x.message&&x.message.startsWith('標題列')?x.message:'讀不出這個檔案。請選「匯出備份」產生的 CSV 檔，或在批次新增頁看正確格式。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
 
