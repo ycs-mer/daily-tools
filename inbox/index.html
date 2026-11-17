@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>腦袋收件匣</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="腦袋收件匣">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#EEF1F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#06112D" media="(prefers-color-scheme: dark)">
+<style>
+:root{--bg:#EEF1F8;--card:#fff;--ink:#2B3445;--mut:#6B7385;--line:#dde2ee;--acc:#BDB6F2;--acc-ink:#2E2760;--tint:#ECE9FD;--tint-ink:#5B50B0;--ok:#E1F5EE;--ok-ink:#1F6A52;--danger:#C8463C;--hl:#FFE9A8}
+@media (prefers-color-scheme: dark){:root{--bg:#06112D;--card:#101d42;--ink:#EEF1F8;--mut:#9aa4bd;--line:#24325e;--tint:#2c2850;--tint-ink:#d4cffb;--ok:#123a36;--ok-ink:#bdeee2;--danger:#ff8a80;--hl:#5a4b12}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;font-size:16px;line-height:1.5}
+body{padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 84px);max-width:560px;margin:0 auto;min-height:100vh}
+h1{font-size:24px;margin:8px 0 14px;font-weight:700}
+h2{font-size:14px;color:var(--mut);font-weight:600;margin:18px 0 8px}
+.card{background:var(--card);border-radius:18px;padding:14px;margin-bottom:10px}
+.card.tap{cursor:pointer}
+.row{display:flex;align-items:center;gap:10px}
+.sp{justify-content:space-between}
+.mut{color:var(--mut);font-size:13px}
+.name{font-weight:600;font-size:17px}
+.th{white-space:pre-wrap;word-break:break-word}
+.pill{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;background:var(--tint);color:var(--tint-ink);white-space:nowrap}
+.pill.ok{background:var(--ok);color:var(--ok-ink)}
+.later{background:var(--ok);color:var(--ok-ink);border-radius:12px;padding:8px 10px;font-size:14px;margin-top:8px;white-space:pre-wrap;word-break:break-word}
+mark{background:var(--hl);color:inherit;border-radius:4px;padding:0 2px}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;min-height:44px;cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+button.d{color:var(--danger)}
+button.w{width:100%}
+button.s{min-height:36px;padding:6px 12px;font-size:14px}
+input,textarea,select{font:inherit;font-size:16px;width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 12px;min-height:44px}
+textarea{min-height:140px;resize:vertical}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;min-height:36px;font-size:14px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dr{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grp{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--mut);font-weight:600;margin:18px 0 8px}
+.note{border-top:1px solid var(--line);padding:10px 0}
+.note:first-child{border-top:none}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 8px calc(env(safe-area-inset-bottom) + 6px)}
+nav button{border:none;background:none;min-height:48px;flex:1;color:var(--mut);font-size:13px;padding:4px}
+nav button.on{color:var(--ink);font-weight:700}
+nav b{display:block;font-size:20px;line-height:1.1}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast.on{opacity:1}
+.empty{text-align:center;padding:28px 12px}
+.gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.back{border:none;background:none;padding:0;color:var(--mut);min-height:36px}
+.cmp{width:100%;border-collapse:collapse;font-size:13px}.cmp th,.cmp td{text-align:left;vertical-align:top;padding:7px 6px;border-bottom:1px solid var(--line)}.cmp tr:last-child td{border-bottom:none}.cmp th{color:var(--mut);font-weight:600}.cmp td:first-child{white-space:nowrap;color:var(--mut)}
+pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border-radius:12px;padding:10px;margin:8px 0}
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:5}
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
+input[type=search]{-webkit-appearance:none;appearance:none}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav id="nav"></nav>
+<div id="toast"></div>
+<script>
+'use strict';
+const VER='11/18';
+const KEY='braininbox.v1';
+const WD=['日','一','二','三','四','五','六'];
+let db=load();
+let ui={tab:'log',draft:{text:''},q:'',range:'all',from:'',to:'',st:'all',by:'week',edit:null,imp:null,bulk:{text:'',rows:null,dup:0}};
+
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.items))return d}catch(e){}return{items:[],lastExport:null}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function pad(n){return String(n).padStart(2,'0')}
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function today(){return ymd(new Date())}
+function fmt(d){return ymd(d)+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
+function stamp(){return fmt(new Date())}
+function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
+function weekStart(s){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));return ymd(d)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+function normDate(s){s=String(s||'').trim();let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+pad(m[1])+'-'+pad(m[2]);return''}
+function normStamp(s){s=String(s||'').trim();let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/),y,mo,d,h,mi,se;
+  if(m){[,y,mo,d,h,mi,se]=m}else{m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);if(!m)return'';[,mo,d,y,h,mi,se]=m}
+  return y+'-'+pad(mo)+'-'+pad(d)+' '+pad(h==null?12:h)+':'+pad(mi||0)+':'+pad(se||0)}
+function uniqAt(at,used){while(used.has(at)){const d=new Date(at.replace(' ','T'));d.setSeconds(d.getSeconds()+1);at=fmt(d)}used.add(at);return at}
+function dateLabel(d){const dt=new Date(d+'T12:00:00'),y=d.slice(0,4);return(y===today().slice(0,4)?'':y+'/')+Number(d.slice(5,7))+'/'+Number(d.slice(8,10))+'（'+WD[dt.getDay()]+'）'}
+function stampLabel(at){return at.slice(0,10)+' '+at.slice(11,16)}
+function sn(s){s=String(s).replace(/\s+/g,' ').trim();return s.length>40?s.slice(0,40)+'…':s}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),1900)}
+function item(id){return db.items.find(x=>x.id===id)}
+function thinkCount(){return db.items.filter(x=>x.st==='think').length}
+
+function terms(){return ui.q.trim().toLowerCase().split(/\s+/).filter(Boolean)}
+function hl(s){const t=terms();if(!t.length)return esc(s);const re=new RegExp('('+t.map(escRe).join('|')+')','gi');
+  return String(s).split(re).map((p,i)=>i%2?'<mark>'+esc(p)+'</mark>':esc(p)).join('')}
+function rangeOf(){const t=today();
+  if(ui.range==='today')return[t,t];if(ui.range==='week')return[weekStart(t),t];if(ui.range==='month')return[t.slice(0,8)+'01',t];
+  if(ui.range==='year')return[t.slice(0,5)+'01-01',t];if(ui.range==='custom')return[ui.from||'',ui.to||''];return['','']}
+function filtersActive(){return !!(ui.q.trim()||ui.range!=='all'||ui.st!=='all')}
+function filtered(){const[f,t]=rangeOf(),ts=terms();
+  return db.items.filter(x=>{const d=x.at.slice(0,10);if(f&&d<f)return false;if(t&&d>t)return false;if(ui.st!=='all'&&x.st!==ui.st)return false;
+    if(ts.length){const hay=(x.t+'\n'+(x.later||'')).toLowerCase();if(!ts.every(w=>hay.includes(w)))return false}return true}).sort((a,b)=>b.at.localeCompare(a.at))}
+
+function vLog(){
+  return`<h1>記一筆</h1>
+  <label>現在在想什麼</label><textarea id="dText" data-m="draft.text" placeholder="例如：為什麼我總是睡前才想到這些？">${esc(ui.draft.text)}</textarea>
+  <p class="mut">也可以點輸入框後，按鍵盤上的麥克風用說的。</p>
+  <div class="gap"><button class="p w" data-a="save">儲存</button></div>
+  <p class="mut" style="text-align:center;margin-top:16px">目前還在想 ${thinkCount()} 則</p>`}
+
+function chip(a,v,label,on){return`<button class="chip ${on?'on':''}" data-a="${a}" data-v="${v}">${label}</button>`}
+function itemHtml(x){const d=x.at.slice(0,10);
+  return`<div class="card tap" data-a="edit" data-id="${x.id}"><div class="th">${hl(x.t)}</div>
+  <div class="row sp" style="margin-top:8px"><span class="mut">${dateLabel(d)} ${x.at.slice(11,16)}</span>${x.st==='done'?'<span class="pill ok">想通了</span>':''}</div>
+  ${x.later?`<div class="later">後來：${hl(x.later)}</div>`:''}</div>`}
+function rowsHtml(){
+  const all=db.items.length;
+  if(!all)return`<div class="card empty"><p class="name">還沒有想法</p><p class="mut">到「記一筆」寫下第一則，之後會出現在這裡。</p><button class="p" data-a="go" data-tab="log">去記一筆</button></div>`;
+  const r=filtered(),act=filtersActive();
+  let h=`<div class="row sp" style="margin:12px 0 4px"><span class="mut">${act?'找到 '+r.length+' 則（共 '+all+' 則）':'共 '+all+' 則'}</span>${act?'<button class="s" data-a="clear">清除篩選</button>':''}</div>`;
+  if(!r.length)return h+`<div class="card empty"><p class="name">沒有符合的想法</p><p class="mut">換個關鍵字，或放寬日期、狀態。</p></div>`;
+  const groups=[],idx={},t=today();
+  r.forEach(x=>{const d=x.at.slice(0,10),k=ui.by==='week'?weekStart(d):d.slice(0,7);
+    if(!(k in idx)){idx[k]=groups.length;groups.push({k,items:[]})}groups[idx[k]].items.push(x)});
+  groups.forEach(g=>{let label;
+    if(ui.by==='week'){label=(g.k===weekStart(t)?'本週 · ':'')+dateLabel(g.k).replace(/（.）/,'')+' – '+dateLabel(addDays(g.k,6)).replace(/（.）/,'')}
+    else{label=(g.k===t.slice(0,7)?'本月 · ':'')+g.k.slice(0,4)+' 年 '+Number(g.k.slice(5,7))+' 月'}
+    h+=`<div class="grp"><span>${label}</span><span>${g.items.length} 則</span></div>${g.items.map(itemHtml).join('')}`});
+  h+=`<div class="gap"><button class="w" data-a="copy">複製這 ${r.length} 則</button></div>`;
+  return h}
+function vReview(){
+  const R=[['all','不限日期'],['today','今天'],['week','本週'],['month','本月'],['year','今年'],['custom','自訂日期']];
+  return`<h1>回顧</h1>
+  <input id="q" type="search" data-i="q" placeholder="搜尋想法或後來" value="${esc(ui.q)}" autocomplete="off" enterkeyhint="search">
+  <label>日期</label><div class="chips">${R.map(r=>chip('setRange',r[0],r[1],ui.range===r[0])).join('')}</div>
+  ${ui.range==='custom'?`<div class="dr" style="margin-top:8px"><div><label style="margin-top:0">從</label><input type="date" data-i="from" value="${esc(ui.from)}" max="${today()}"></div><div><label style="margin-top:0">到</label><input type="date" data-i="to" value="${esc(ui.to)}" max="${today()}"></div></div>`:''}
+  <label>狀態</label><div class="chips">${[['all','全部'],['think','還在想'],['done','想通了']].map(r=>chip('setStatus',r[0],r[1],ui.st===r[0])).join('')}</div>
+  <label>分組</label><div class="chips">${[['week','依週'],['month','依月']].map(r=>chip('setBy',r[0],r[1],ui.by===r[0])).join('')}</div>
+  <div id="rows">${rowsHtml()}</div>`}
+
+function vEdit(){const e=ui.edit;if(!e){ui.tab='review';return vReview()}
+  return`<button class="back" data-a="go" data-tab="review">‹ 回顧</button><h1>修改想法</h1>
+  <p class="mut">記錄於 ${stampLabel(e.at)}</p>
+  <label>想法</label><textarea id="eT" data-m="edit.t">${esc(e.t)}</textarea>
+  <label>狀態</label><div class="seg"><button class="chip ${e.st==='think'?'on':''}" data-a="setSt" data-v="think">還在想</button><button class="chip ${e.st==='done'?'on':''}" data-a="setSt" data-v="done">想通了</button></div>
+  <label>後來（選填）</label><textarea id="eL" data-m="edit.later" style="min-height:72px" placeholder="後來怎麼想，或得到什麼答案">${esc(e.later)}</textarea>
+  <div class="gap"><button class="p w" data-a="editSave">儲存</button></div>
+  <div class="gap"><button class="w" data-a="go" data-tab="review">取消</button></div>
+  <div class="gap"><button class="w d" data-a="editDel">刪除這則</button></div>`}
+
+function vSet(){const n=db.items.length;
+  return`<h1>設定</h1>
+  <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份（取代全部）</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾則，請用下面的「批次新增想法」。</p></div>
+  <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
+  <h2>一次新增很多</h2><div class="card"><p class="mut" style="margin-top:0">把舊的想法一次加進來，例如從備忘錄複製貼上。</p><button data-a="go" data-tab="bulk">批次新增想法</button></div>
+  <p class="mut" style="text-align:center">共 ${n} 則 · 還在想 ${thinkCount()} · 想通了 ${n-thinkCount()}</p>`}
+
+function vBulk(){const b=ui.bulk;
+  let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次新增</h1>
+  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次新增（本頁）</th><th>匯入備份</th></tr>
+  <tr><td>做什麼</td><td>只新增。同一天、內容相同的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的想法會被刪掉，確認前有預覽</td></tr>
+  <tr><td>標題列</td><td>不用，一行一則</td><td>一定要有，欄位名稱要完全一樣</td></tr>
+  <tr><td>狀態與後來</td><td>不能指定，都是「還在想」</td><td>可以</td></tr>
+  <tr><td>入口</td><td>設定 → 批次新增想法</td><td>設定 → 匯入備份</td></tr></table></div>
+  <p class="mut">一行一則想法。行首可以選填日期（和時間），沒寫就當作現在記下的。</p>
+  <pre>為什麼我總是睡前才想到這些？
+2026-10-20 想學西班牙文，要從哪裡開始
+2026-11-03 22:15 下個月的目標是什麼</pre>
+  <p class="mut">日期格式：2026-10-20，或 2026/10/20。後面空一格再寫想法。</p>
+  <h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
+  <pre>想法,狀態,後來,加入時間,想通了日期</pre>
+  <p class="mut">狀態：還在想、想通了<br>加入時間：2026-11-17 22:45:12（日期加時間）<br>想通了日期：2026-11-20，還在想的留空<br>想法內容有逗號或換行時，試算表會自動處理，不用特別改。</p>
+  <pre>為什麼我總是睡前才想到這些？,還在想,,2026-11-17 22:45:12,
+想學西班牙文要從哪裡開始,想通了,先看影片再報名課,2026-10-20 12:00:00,2026-11-05</pre>
+  <p class="mut" style="margin-bottom:0">最不會出錯的做法：先在「設定」匯出備份，用試算表改完再匯入。</p></div>
+  <label>貼上想法</label><textarea data-m="bulk.text" id="bulkText" style="min-height:160px" placeholder="一行一則">${esc(b.text)}</textarea>
+  <div class="gap"><button data-a="bulkFile">從檔案載入</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" hidden>`;
+  if(b.rows){
+    h+=`<h2>預覽：${b.rows.length} 則${b.dup?'（另有 '+b.dup+' 則已存在，略過）':''}</h2>`;
+    if(b.rows.length)h+=`<div class="card">${b.rows.slice(0,30).map(r=>`<div class="note"><div class="th">${esc(sn(r.t))}</div><div class="mut">${dateLabel(r.at.slice(0,10))}</div></div>`).join('')}${b.rows.length>30?`<p class="mut" style="margin-bottom:0">還有 ${b.rows.length-30} 則…</p>`:''}</div><div class="gap"><button class="p w" data-a="bulkCommit">加入這 ${b.rows.length} 則</button></div>`;
+    else h+=`<div class="card empty"><p class="mut">沒有可以加入的想法。</p></div>`}
+  return h}
+function parseBulk(text){const used=new Set(db.items.map(x=>x.at)),seen=new Set(db.items.map(x=>x.at.slice(0,10)+'|'+x.t)),rows=[];let dup=0;
+  text.replace(/^﻿/,'').split(/\r?\n/).forEach(line=>{line=line.trim();if(!line)return;
+    const m=line.match(/^(\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2})(?:[ T](\d{1,2}:\d{2}))?[\s,，]+(.+)$/);
+    let t=line,at=stamp();if(m){t=m[3].trim();at=normStamp(m[1]+' '+(m[2]||'12:00'))||at}
+    const key=at.slice(0,10)+'|'+t;if(seen.has(key)){dup++;return}seen.add(key);
+    rows.push({id:uid(),t,at:uniqAt(at,used),st:'think',later:'',doneAt:null})});
+  return{rows,dup}}
+
+function csvCell(v){v=String(v==null?'':v);return/[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function toCsv(rows){return'﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n'}
+function parseCsv(t){t=t.replace(/^﻿/,'');const rows=[];let row=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"')q=true;else if(ch===','){row.push(c);c=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(c);rows.push(row);row=[];c=''}else c+=ch}
+  if(c!==''||row.length){row.push(c);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()!==''))}
+const CH=['想法','狀態','後來','加入時間','想通了日期'];
+function backupCsv(){const rows=[CH];[...db.items].sort((a,b)=>a.at.localeCompare(b.at)).forEach(x=>rows.push([x.t,x.st==='done'?'想通了':'還在想',x.later||'',x.at,x.doneAt||'']));return toCsv(rows)}
+function readBackup(text){
+  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n),miss=CH.filter(n=>col(n)<0);
+  if(miss.length)throw new Error('標題列不符，缺少欄位：'+miss.join('、')+'\n\n匯入備份的第一列必須是：\n'+CH.join(',')+'\n\n你的第一列是：\n'+h.join(',')+'\n\n如果只是想新增幾則，請改用「批次新增想法」。');
+  const g=(r,n)=>String(r[col(n)]||'').trim(),used=new Set(),items=[];
+  rows.slice(1).forEach(r=>{const t=String(r[col('想法')]||'').trim();if(!t)return;
+    const st=/想通/.test(g(r,'狀態'))?'done':'think',at=uniqAt(normStamp(g(r,'加入時間'))||today()+' 12:00:00',used);
+    items.push({id:uid(),t,st,later:g(r,'後來'),at,doneAt:st==='done'?(normDate(g(r,'想通了日期'))||at.slice(0,10)):null})});
+  return items}
+function impList(title,arr,cls){return arr.length?`<h2>${title}（${arr.length}）</h2><div class="card">${arr.map(x=>`<div class="note"><span ${cls?'style="color:var(--danger)"':''}>${esc(x.n)}</span>${x.d?`<div class="mut">${esc(x.d)}</div>`:''}</div>`).join('')}</div>`:''}
+function vImp(){const m=ui.imp;if(!m){ui.tab='set';return vSet()}const d=m.diff,none=!d.add.length&&!d.chg.length&&!d.del.length;
+  return`<button class="back" data-a="go" data-tab="set">‹ 取消</button><h1>確認匯入</h1>
+  <p class="mut">匯入會整份取代手機上的資料。檔案裡有 ${m.count} 則，手機上現在有 ${m.cur} 則。</p>
+  <div class="card"><div class="chips"><span class="pill">新增 ${d.add.length}</span><span class="pill">修改 ${d.chg.length}</span><span class="pill" style="background:none;border:1px solid var(--danger);color:var(--danger)">刪除 ${d.del.length}</span><span class="pill" style="background:none;border:1px solid var(--line);color:var(--mut)">不變 ${d.same}</span></div>${none?'<p class="mut" style="margin-bottom:0">檔案內容和手機上的資料相同。</p>':''}</div>
+  ${impList('會刪除',d.del,1)}${impList('會修改',d.chg)}${impList('會新增',d.add)}
+  <div class="gap"><button class="p w" data-a="impApply">確認取代</button></div><div class="gap"><button class="w" data-a="go" data-tab="set">取消</button></div>`}
+
+const VIEWS={log:vLog,review:vReview,edit:vEdit,set:vSet,bulk:vBulk,imp:vImp};
+function render(keep){
+  document.getElementById('app').innerHTML=VIEWS[ui.tab]();
+  const cur=({edit:'review',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
+  document.getElementById('nav').innerHTML=[['log','＋','記一筆'],['review','☰','回顧'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
+  if(!keep)window.scrollTo(0,0)}
+
+const A={
+  go(d){ui.tab=d.tab;if(d.tab==='bulk')ui.bulk={text:'',rows:null,dup:0};if(d.tab==='review'||d.tab==='log')ui.edit=null;render()},
+  save(){const t=ui.draft.text.trim();if(!t)return toast('先寫下一點什麼');
+    db.items.push({id:uid(),t,at:uniqAt(stamp(),new Set(db.items.map(x=>x.at))),st:'think',later:'',doneAt:null});save();ui.draft.text='';toast('已記下，還在想 '+thinkCount()+' 則');render()},
+  setRange(d){ui.range=d.v;render(true)},
+  setStatus(d){ui.st=d.v;render(true)},
+  setBy(d){ui.by=d.v;render(true)},
+  clear(){ui.q='';ui.range='all';ui.from='';ui.to='';ui.st='all';render(true)},
+  edit(d){const x=item(d.id);if(!x)return;ui.edit={id:x.id,at:x.at,t:x.t,st:x.st,later:x.later||''};ui.tab='edit';render()},
+  setSt(d){ui.edit.st=d.v;render(true)},
+  editSave(){const e=ui.edit,x=e&&item(e.id);if(!x)return;const t=e.t.trim();if(!t)return toast('想法不能是空的');
+    x.t=t;x.later=e.later.trim();x.st=e.st;x.doneAt=e.st==='done'?(x.doneAt||today()):null;save();ui.edit=null;ui.tab='review';toast('已儲存');render()},
+  editDel(){const e=ui.edit;if(!e)return;if(!confirm('刪除這則想法？刪除後無法復原。'))return;db.items=db.items.filter(x=>x.id!==e.id);save();ui.edit=null;ui.tab='review';toast('已刪除');render()},
+  async copy(){const r=filtered();if(!r.length)return;
+    const text='我最近冒出的想法（共 '+r.length+' 則）：\n'+r.map((x,i)=>(i+1)+'. '+x.t.replace(/\s*\n\s*/g,' ')+(x.later?'（後來：'+x.later.replace(/\s*\n\s*/g,' ')+'）':'')).join('\n');
+    try{await navigator.clipboard.writeText(text)}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(x){}ta.remove()}
+    toast('已複製 '+r.length+' 則')},
+  async export(){const name='brain-inbox-backup-'+today()+'.csv';const ok=await shareOrDownload(name,backupCsv());if(ok){db.lastExport=today();save();render()}},
+  async refresh(){if(!navigator.onLine)return toast('目前沒有網路');toast('更新中');
+    try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
+      if(window.caches){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('inbox-')).map(k=>caches.delete(k)))}}catch(e){}
+    location.reload()},
+  impApply(){if(!ui.imp)return;db.items=ui.imp.items;ui.imp=null;save();toast('已匯入');ui.tab='review';render()},
+  importPick(){document.getElementById('impFile').click()},
+  bulkFile(){document.getElementById('bulkF').click()},
+  bulkPreview(){const r=parseBulk(ui.bulk.text);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
+  bulkCommit(){const n=ui.bulk.rows.length;db.items.push(...ui.bulk.rows);save();ui.bulk={text:'',rows:null,dup:0};ui.tab='review';toast('已加入 '+n+' 則');render()}
+};
+
+async function shareOrDownload(name,text){
+  const file=new File([text],name,{type:'text/csv'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return true}catch(e){if(e&&e.name==='AbortError')return false}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();return true}
+
+function refreshRows(){const r=document.getElementById('rows');if(r)r.innerHTML=rowsHtml()}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;const f=A[el.dataset.a];if(f)f(el.dataset)});
+function onInput(e){const el=e.target;
+  if(el.dataset.m){const[o,k]=el.dataset.m.split('.');ui[o][k]=el.value;if(o==='bulk')ui.bulk.rows=null}
+  if(el.dataset.i==='q'){ui.q=el.value;refreshRows()}
+  if(el.dataset.i==='from'){ui.from=el.value;refreshRows()}
+  if(el.dataset.i==='to'){ui.to=el.value;refreshRows()}}
+document.addEventListener('input',onInput);
+document.addEventListener('change',e=>{const el=e.target;
+  if(el.dataset.i==='from'||el.dataset.i==='to'){onInput(e);return}
+  const f=el.files&&el.files[0];if(!f)return;const rd=new FileReader();
+  if(el.id==='impFile'){rd.onload=()=>{try{
+      const items=readBackup(String(rd.result)),old=new Map(db.items.map(x=>[x.at,x])),seen=new Set(),diff={add:[],chg:[],del:[],same:0};
+      items.forEach(p=>{seen.add(p.at);const o=old.get(p.at);if(!o){diff.add.push({n:sn(p.t),d:dateLabel(p.at.slice(0,10))+(p.st==='done'?' · 想通了':'')});return}
+        const w=[];if(o.t!==p.t)w.push('想法');if(o.st!==p.st)w.push('狀態');if((o.later||'')!==(p.later||''))w.push('後來');if((o.doneAt||'')!==(p.doneAt||''))w.push('想通了日期');
+        if(w.length)diff.chg.push({n:sn(p.t),d:w.join('、')});else diff.same++});
+      db.items.forEach(o=>{if(!seen.has(o.at))diff.del.push({n:sn(o.t),d:dateLabel(o.at.slice(0,10))})});
+      ui.imp={items,diff,count:items.length,cur:db.items.length};ui.tab='imp';render()
+    }catch(x){alert(x&&x.message&&x.message.startsWith('標題列')?x.message:'讀不出這個檔案。請選「匯出備份」產生的 CSV 檔，或在批次新增頁看正確格式。')}};rd.readAsText(f)}
+  if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
+  el.value=''});
+
+render();
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
