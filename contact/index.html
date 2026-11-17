@@ -67,13 +67,13 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17 c';
+const VER='11/18';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let db=load();
-let ui={tab:'week',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
+let ui={tab:'log',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
 
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.people))return d}catch(e){}return{people:[],lastExport:null}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -143,6 +143,7 @@ function vLog(){
   const p=person(ui.draft.pid);
   return`<h1>記一筆</h1>
   <label>跟誰聊</label><input id="logQ" placeholder="搜尋或輸入新名字" value="${esc(ui.logQ)}" data-i="logQ" autocomplete="off">
+  ${db.people.length?'':'<p class="mut">還沒有人。直接輸入名字就能新增；要一次加很多人，到「設定 → 批次新增名單」。</p>'}
   <div class="chips" id="chips" style="margin-top:8px">${chipsHtml()}</div>
   ${p&&p.ask?`<div class="ask">上次留的：${esc(p.ask)}</div>`:''}
   <label>聊了什麼</label><textarea data-m="draft.text" id="dText" placeholder="電梯遇到，她說下個月要搬家">${esc(ui.draft.text)}</textarea>
@@ -310,7 +311,7 @@ const VIEWS={imp:vImp,week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,s
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
   const cur=({person:'list',edit:'list',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
-  document.getElementById('nav').innerHTML=[['week','◎','本週'],['log','＋','記一筆'],['list','☰','名單'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
+  document.getElementById('nav').innerHTML=[['log','＋','記一筆'],['week','◎','本週'],['list','☰','名單'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
   window.scrollTo(0,0)}
 
 const A={
@@ -329,7 +330,7 @@ const A={
     const date=d.date&&d.date<=today()?d.date:today();
     p.notes.push({d:date,t:d.text.trim()});p.notes.sort((a,b)=>b.d.localeCompare(a.d));
     if(!p.last||date>p.last)p.last=date;if(d.ask.trim())p.ask=d.ask.trim();p.skip=null;save();
-    ui.draft=newDraft();ui.logQ='';ui.pid=p.id;ui.tab='person';toast('已儲存');render()},
+    ui.draft=newDraft();ui.logQ='';ui.pid=p.id;ui.tab='log';toast('已記下：'+p.name);render()},
   cat(d){ui.cat=d.c;render()},
   newPerson(){ui.edit={id:null,name:'',cat:'好友',mode:'active',iv:30,last:'',ask:'',memo:''};ui.tab='edit';render()},
   editPerson(){const p=person(ui.pid);ui.edit={id:p.id,name:p.name,cat:p.cat,mode:p.mode,iv:p.iv,last:p.last||'',ask:p.ask||'',memo:p.memo||''};ui.tab='edit';render()},
