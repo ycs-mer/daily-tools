@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#EEF1F8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#06112D" media="(prefers-color-scheme: dark)">
 <style>
-:root{--bg:#EEF1F8;--card:#fff;--ink:#06112D;--mut:#646b80;--line:#dde2ee;--acc:#FF9575;--acc-ink:#06112D;--tint:#FFE7DD;--tint-ink:#8a3415;--mint:#E7F9F4;--mint-ink:#0d5c4c;--danger:#b3261e}
+:root{--bg:#EEF1F8;--card:#fff;--ink:#2B3445;--mut:#6B7385;--line:#dde2ee;--acc:#FF8A66;--acc-ink:#2B3445;--tint:#FFE6DC;--tint-ink:#B04A2A;--mint:#D8F5EC;--mint-ink:#1B7F68;--danger:#C8463C}
 @media (prefers-color-scheme: dark){:root{--bg:#06112D;--card:#101d42;--ink:#EEF1F8;--mut:#9aa4bd;--line:#24325e;--tint:#4a2a26;--tint-ink:#ffc4b0;--mint:#123a36;--mint-ink:#bdeee2;--danger:#ff8a80}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;font-size:16px;line-height:1.5}
@@ -55,6 +55,9 @@ nav b{display:block;font-size:20px;line-height:1.1}
 .gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .back{border:none;background:none;padding:0;color:var(--mut);min-height:36px}
 pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border-radius:12px;padding:10px;margin:8px 0}
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:5}
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
 </style>
 </head>
 <body>
@@ -63,6 +66,7 @@ pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border
 <div id="toast"></div>
 <script>
 'use strict';
+const VER='11/17';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
@@ -189,6 +193,7 @@ function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
   <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" accept=".json,application/json" hidden></div>
+  <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
   <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多人。</p><button data-a="go" data-tab="bulk">批次匯入名單</button></div>
   <p class="mut" style="text-align:center">共 ${db.people.length} 人 · ${db.people.reduce((s,p)=>s+p.notes.length,0)} 筆紀錄</p>`}
 
@@ -276,6 +281,10 @@ const A={
     r.onerror=()=>toast('語音沒有成功，改用鍵盤上的麥克風');try{r.start();toast('請說話')}catch(e){toast('語音沒有成功，改用鍵盤上的麥克風')}},
   async export(){const name='keep-in-touch-backup-'+today()+'.json';const text=JSON.stringify({app:'keep-in-touch',v:1,at:new Date().toISOString(),data:{people:db.people}},null,1);
     const ok=await shareOrDownload(name,text);if(ok){db.lastExport=today();save();render()}},
+  async refresh(){if(!navigator.onLine)return toast('目前沒有網路');toast('更新中');
+    try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
+      if(window.caches){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('kit-')).map(k=>caches.delete(k)))}}catch(e){}
+    location.reload()},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
   bulkPreview(){const r=parseBulk(ui.bulk.text);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
