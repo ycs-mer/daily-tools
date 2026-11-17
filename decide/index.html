@@ -159,7 +159,7 @@ function vEdit(){
 function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
-  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" accept=".json,application/json" hidden></div>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden></div>
   <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="新增地點" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增</button></div></div>
   <h2>自訂類別</h2>${db.cats.map(c=>`<div class="card"><div class="row sp"><span class="name">${esc(c.name)}</span><button class="s d" data-a="delCat" data-id="${c.id}">刪除類別</button></div><div class="chips" style="margin-top:8px">${c.tags.map((t,i)=>`<button class="chip" data-a="delTag" data-id="${c.id}" data-i="${i}">${esc(t)} ✕</button>`).join('')||'<span class="mut">還沒有標籤</span>'}</div><div class="row" style="margin-top:10px"><input id="tag_${c.id}" placeholder="新增標籤" autocomplete="off"><button class="p" style="flex:none" data-a="addTag" data-id="${c.id}">新增</button></div></div>`).join('')}
   <div class="card"><p class="mut" style="margin-top:0">想抽別的東西，例如看什麼、今晚做什麼，可以新增類別。</p><div class="row"><input id="newCat" placeholder="類別名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addCat">新增</button></div></div>
@@ -179,7 +179,7 @@ function vBulk(){
   <p class="mut">類別寫「吃」、「活動」或你自訂的類別名稱。沒寫時會依標籤判斷，判斷不出來就用下面選的類別。狀態可寫待嘗試、喜歡、普通，沒寫就是待嘗試。吃的可以加地點，名稱要跟「設定」裡的地點一樣。地圖連結直接貼網址即可。</p>
   ${catSeg('bulkCat',ui.poolCat,'預設：')}
   <textarea data-m="bulk.text" style="min-height:160px" placeholder="從試算表或記事本貼上">${esc(b.text)}</textarea>
-  <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden>`;
+  <div class="gap"><button data-a="bulkFile">選擇檔案（.csv / .txt）</button><button class="p" data-a="bulkPreview">預覽</button></div><input type="file" id="bulkF" hidden>`;
   if(b.rows){
     h+=`<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${esc(catName(r.cat))}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}${r.url?' · 有地圖連結':''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 個</button>`:''}`}
@@ -262,7 +262,7 @@ const A={
     else db.items.push({id:uid(),cat:e.cat,name,t,status:e.status,note:e.note.trim(),url,last:null,pend:false,booked:false});
     save();ui.poolCat=e.cat;ui.tab='pool';toast('已儲存');render()},
   delItem(){const it=item(ui.edit.id);if(!confirm('刪除「'+it.name+'」？'))return;db.items=db.items.filter(x=>x.id!==it.id);save();ui.tab='pool';render()},
-  async export(){const name='what-to-do-backup-'+today()+'.json';const text=JSON.stringify({app:'what-to-do',v:1,at:new Date().toISOString(),data:{items:db.items,locs:db.locs,cats:db.cats}},null,1);
+  async export(){const name='what-to-do-backup-'+today()+'.txt';const text=JSON.stringify({app:'what-to-do',v:1,at:new Date().toISOString(),data:{items:db.items,locs:db.locs,cats:db.cats}},null,1);
     const ok=await shareOrDownload(name,text);if(ok){db.lastExport=today();save();render()}},
   async refresh(){if(!navigator.onLine)return toast('目前沒有網路');toast('更新中');
     try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
@@ -275,7 +275,7 @@ const A={
 };
 
 async function shareOrDownload(name,text){
-  const file=new File([text],name,{type:'application/json'});
+  const file=new File([text],name,{type:'text/plain'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return true}catch(e){if(e&&e.name==='AbortError')return false}}
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();return true}
 
