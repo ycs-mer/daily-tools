@@ -158,7 +158,7 @@ function vEdit(){
 
 function vSet(){
   return`<h1>設定</h1>
-  <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
+  <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
   <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden></div>
   <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="新增地點" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增</button></div></div>
   <h2>自訂類別</h2>${db.cats.map(c=>`<div class="card"><div class="row sp"><span class="name">${esc(c.name)}</span><button class="s d" data-a="delCat" data-id="${c.id}">刪除類別</button></div><div class="chips" style="margin-top:8px">${c.tags.map((t,i)=>`<button class="chip" data-a="delTag" data-id="${c.id}" data-i="${i}">${esc(t)} ✕</button>`).join('')||'<span class="mut">還沒有標籤</span>'}</div><div class="row" style="margin-top:10px"><input id="tag_${c.id}" placeholder="新增標籤" autocomplete="off"><button class="p" style="flex:none" data-a="addTag" data-id="${c.id}">新增</button></div></div>`).join('')}
@@ -214,6 +214,31 @@ function parseBulk(text,defCat){
     rows.push({id:uid(),cat,name,t,status,note:extra.join('，'),url:url.replace(/[,，、;；]+$/,''),last:null,pend:false,booked:false})});
   return{rows,dup}}
 
+function csvCell(v){v=String(v==null?'':v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function toCsv(rows){return '﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n'}
+function parseCsv(t){t=t.replace(/^﻿/,'');const rows=[];let row=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"')q=true;else if(ch===','){row.push(c);c=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(c);rows.push(row);row=[];c=''}else c+=ch}
+  if(c!==''||row.length){row.push(c);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()!==''))}
+function normDate(s){s=String(s||'').trim();let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+pad(m[1])+'-'+pad(m[2]);return''}
+const DH=['名稱','類別','狀態','地點','區域','方式','價位','人數','時間','場地','預約','體力','標籤','備註','地圖','上次選擇日','待評分','已預約'];
+const LK={'地點':'loc','區域':'area','方式':'mode','價位':'price','人數':'ppl','時間':'dur','場地':'place','預約':'book','體力':'energy','標籤':'tag'};
+function backupCsv(){const rows=[DH];db.items.forEach(it=>{const ds=dims(it.cat);rows.push(DH.map(hd=>{
+    if(hd==='名稱')return it.name;if(hd==='類別')return catName(it.cat);if(hd==='狀態')return ST[it.status];if(hd==='備註')return it.note||'';if(hd==='地圖')return it.url||'';
+    if(hd==='上次選擇日')return it.last||'';if(hd==='待評分')return it.pend?'是':'';if(hd==='已預約')return it.booked?'是':'';
+    const d=ds.find(x=>x.n===hd);return d?(it.t[d.k]||[]).join('、'):''}))});return toCsv(rows)}
+function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith('{'))return JSON.parse(text);
+  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);if(h[0]!=='名稱'||col('類別')<0)throw 0;
+  const g=(r,n)=>{const i=col(n);return i<0?'':String(r[i]||'').trim()},yes=v=>/^(是|y|yes|true|1)$/i.test(v);
+  const cats=db.cats.map(c=>({id:c.id,name:c.name,tags:c.tags.slice()})),locs=db.locs.slice(),items=[];
+  rows.slice(1).forEach(r=>{const name=g(r,'名稱');if(!name)return;const cn=g(r,'類別');let cat=cn===CN.act?'act':(!cn||cn===CN.food)?'food':null;
+    if(!cat){let c=cats.find(x=>x.name===cn);if(!c){if(cats.length>=8)return;c={id:'c_'+uid(),name:cn,tags:[]};cats.push(c)}cat=c.id}
+    const t={};Object.keys(LK).forEach(hd=>{const v=g(r,hd);if(v)t[LK[hd]]=v.split(/[、\/]/).map(x=>x.trim()).filter(Boolean)});
+    const sv=g(r,'狀態'),st=Object.keys(ST).find(k=>ST[k]===sv)||'try';
+    items.push({id:uid(),cat,name,t,status:st,note:g(r,'備註'),url:g(r,'地圖'),last:normDate(g(r,'上次選擇日'))||null,pend:yes(g(r,'待評分')),booked:yes(g(r,'已預約'))})});
+  return{app:'what-to-do',data:{items,locs,cats}}}
 const VIEWS={draw:vDraw,pool:vPool,edit:vEdit,set:vSet,bulk:vBulk};
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
@@ -262,7 +287,7 @@ const A={
     else db.items.push({id:uid(),cat:e.cat,name,t,status:e.status,note:e.note.trim(),url,last:null,pend:false,booked:false});
     save();ui.poolCat=e.cat;ui.tab='pool';toast('已儲存');render()},
   delItem(){const it=item(ui.edit.id);if(!confirm('刪除「'+it.name+'」？'))return;db.items=db.items.filter(x=>x.id!==it.id);save();ui.tab='pool';render()},
-  async export(){const name='what-to-do-backup-'+today()+'.txt';const text=JSON.stringify({app:'what-to-do',v:1,at:new Date().toISOString(),data:{items:db.items,locs:db.locs,cats:db.cats}},null,1);
+  async export(){const name='what-to-do-backup-'+today()+'.csv';const text=backupCsv();
     const ok=await shareOrDownload(name,text);if(ok){db.lastExport=today();save();render()}},
   async refresh(){if(!navigator.onLine)return toast('目前沒有網路');toast('更新中');
     try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
@@ -275,7 +300,7 @@ const A={
 };
 
 async function shareOrDownload(name,text){
-  const file=new File([text],name,{type:'text/plain'});
+  const file=new File([text],name,{type:'text/csv'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return true}catch(e){if(e&&e.name==='AbortError')return false}}
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();return true}
 
@@ -283,7 +308,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.m){const[o,k]=el.dataset.m.split('.');ui[o][k]=el.value;if(o==='bulk')ui.bulk.rows=null}});
 document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0];if(!f)return;
   const rd=new FileReader();
-  if(el.id==='impFile'){rd.onload=()=>{try{const j=JSON.parse(rd.result);if(j.app!=='what-to-do'||!j.data||!Array.isArray(j.data.items))throw 0;
+  if(el.id==='impFile'){rd.onload=()=>{try{const j=readBackup(String(rd.result));if(j.app!=='what-to-do'||!j.data||!Array.isArray(j.data.items))throw 0;
       if(!confirm('匯入 '+j.data.items.length+' 個選項，取代目前手機上的 '+db.items.length+' 個？'))return;
       if(Array.isArray(j.data.locs))db.locs=j.data.locs.map(String);
       db.cats=Array.isArray(j.data.cats)?j.data.cats.filter(c=>c&&/^c_[\w-]+$/.test(String(c.id))&&c.name).slice(0,8).map(c=>({id:String(c.id),name:String(c.name),tags:Array.isArray(c.tags)?c.tags.map(String):[]})):[];

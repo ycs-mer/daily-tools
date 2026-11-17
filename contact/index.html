@@ -191,7 +191,7 @@ function vEdit(){
 
 function vSet(){
   return`<h1>設定</h1>
-  <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
+  <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
   <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden></div>
   <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
   <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多人。</p><button data-a="go" data-tab="bulk">批次匯入名單</button></div>
@@ -237,6 +237,26 @@ function parseBulk(text){
     rows.push(r)});
   return{rows,dup}}
 
+function csvCell(v){v=String(v==null?'':v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function toCsv(rows){return '﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n'}
+function parseCsv(t){t=t.replace(/^﻿/,'');const rows=[];let row=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"')q=true;else if(ch===','){row.push(c);c=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(c);rows.push(row);row=[];c=''}else c+=ch}
+  if(c!==''||row.length){row.push(c);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()!==''))}
+function normDate(s){s=String(s||'').trim();let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+pad(m[1])+'-'+pad(m[2]);return''}
+const CH=['名字','分類','模式','間隔','上次聯絡日','下次可以問','備註','紀錄日期','紀錄內容'];
+function backupCsv(){const rows=[CH];db.people.forEach(p=>{const b=[p.name,p.cat,p.mode==='active'?'主動聯絡':'只記錄',ivName(p.iv),p.last||'',p.ask||'',p.memo||''];
+  if(p.notes.length)p.notes.forEach(n=>rows.push([...b,n.d,n.t]));else rows.push([...b,'',''])});return toCsv(rows)}
+function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith('{'))return JSON.parse(text);
+  const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n);if(h[0]!=='名字'||col('紀錄內容')<0)throw 0;
+  const g=(r,n)=>{const i=col(n);return i<0?'':String(r[i]||'').trim()},map=new Map();
+  rows.slice(1).forEach(r=>{const name=g(r,'名字');if(!name)return;let q=map.get(name);
+    if(!q){const ivs=g(r,'間隔').replace(/\s/g,''),f=IVS.find(v=>v[1].replace(/\s/g,'')===ivs);
+      q={name,cat:g(r,'分類'),mode:/主動/.test(g(r,'模式'))?'active':'log',iv:f?f[0]:(parseInt(ivs)||30),last:normDate(g(r,'上次聯絡日'))||null,ask:g(r,'下次可以問'),memo:g(r,'備註'),notes:[]};map.set(name,q)}
+    const t=g(r,'紀錄內容');if(t)q.notes.push({d:normDate(g(r,'紀錄日期'))||q.last||today(),t})});
+  const people=[...map.values()];people.forEach(q=>q.notes.sort((a,b)=>b.d.localeCompare(a.d)));return{app:'keep-in-touch',data:{people}}}
 const VIEWS={week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,set:vSet,bulk:vBulk};
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
@@ -279,7 +299,7 @@ const A={
   mic(d){if(!SR)return;const el=document.getElementById(d.t);const r=new SR();r.lang='zh-TW';r.interimResults=false;
     r.onresult=e=>{const s=e.results[0][0].transcript;el.value=(el.value?el.value+' ':'')+s;el.dispatchEvent(new Event('input',{bubbles:true}))};
     r.onerror=()=>toast('語音沒有成功，改用鍵盤上的麥克風');try{r.start();toast('請說話')}catch(e){toast('語音沒有成功，改用鍵盤上的麥克風')}},
-  async export(){const name='keep-in-touch-backup-'+today()+'.txt';const text=JSON.stringify({app:'keep-in-touch',v:1,at:new Date().toISOString(),data:{people:db.people}},null,1);
+  async export(){const name='keep-in-touch-backup-'+today()+'.csv';const text=backupCsv();
     const ok=await shareOrDownload(name,text);if(ok){db.lastExport=today();save();render()}},
   async refresh(){if(!navigator.onLine)return toast('目前沒有網路');toast('更新中');
     try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
@@ -292,7 +312,7 @@ const A={
 };
 
 async function shareOrDownload(name,text){
-  const file=new File([text],name,{type:'text/plain'});
+  const file=new File([text],name,{type:'text/csv'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return true}catch(e){if(e&&e.name==='AbortError')return false}}
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();return true}
 
@@ -304,7 +324,7 @@ document.addEventListener('input',e=>{const el=e.target;
   if(el.dataset.i==='q'){ui.q=el.value;document.getElementById('rows').innerHTML=rowsHtml()}});
 document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0];if(!f)return;
   const rd=new FileReader();
-  if(el.id==='impFile'){rd.onload=()=>{try{const j=JSON.parse(rd.result);if(j.app!=='keep-in-touch'||!j.data||!Array.isArray(j.data.people))throw 0;
+  if(el.id==='impFile'){rd.onload=()=>{try{const j=readBackup(String(rd.result));if(j.app!=='keep-in-touch'||!j.data||!Array.isArray(j.data.people))throw 0;
       if(!confirm('匯入 '+j.data.people.length+' 人，取代目前手機上的 '+db.people.length+' 人？'))return;
       db.people=j.data.people.map(p=>({id:p.id||uid(),name:String(p.name||''),cat:CATS.includes(p.cat)?p.cat:'其他',mode:p.mode==='active'?'active':'log',iv:Number(p.iv)||30,last:p.last||null,ask:p.ask||'',memo:p.memo||'',notes:Array.isArray(p.notes)?p.notes.map(n=>({d:String(n.d||today()),t:String(n.t||'')})):[],skip:p.skip||null})).filter(p=>p.name);
       save();toast('已匯入');ui.tab='list';render()}catch(x){alert('這不是「保持聯絡」的備份檔。')}};rd.readAsText(f)}
