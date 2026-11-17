@@ -56,6 +56,7 @@ nav b{display:block;font-size:20px;line-height:1.1}
 .empty{text-align:center;padding:28px 12px}
 .gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .back{border:none;background:none;padding:0;color:var(--mut);min-height:36px}
+.cmp{width:100%;border-collapse:collapse;font-size:13px}.cmp th,.cmp td{text-align:left;vertical-align:top;padding:7px 6px;border-bottom:1px solid var(--line)}.cmp tr:last-child td{border-bottom:none}.cmp th{color:var(--mut);font-weight:600}.cmp td:first-child{white-space:nowrap;color:var(--mut)}
 pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border-radius:12px;padding:10px;margin:8px 0}
 a.btn{display:inline-flex;align-items:center;justify-content:center;font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;min-height:44px;text-decoration:none}
 a.btn.s{min-height:36px;padding:6px 12px;font-size:14px}
@@ -73,7 +74,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17';
+const VER='11/17 b';
 const KEY='whattodo.v1';
 const CN={food:'吃的',act:'週末活動'};
 const DIM={
@@ -159,7 +160,7 @@ function vEdit(){
 function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
-  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden></div>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個選項，請用下面的「批次匯入選項」。</p></div>
   <h2>地點（吃的）</h2><div class="card"><div class="chips">${db.locs.map((l,i)=>`<button class="chip" data-a="delLoc" data-i="${i}">${esc(l)} ✕</button>`).join('')||'<span class="mut">還沒有地點</span>'}</div><div class="row" style="margin-top:10px"><input id="newLoc" placeholder="新增地點" autocomplete="off"><button class="p" style="flex:none" data-a="addLoc">新增</button></div></div>
   <h2>自訂類別</h2>${db.cats.map(c=>`<div class="card"><div class="row sp"><span class="name">${esc(c.name)}</span><button class="s d" data-a="delCat" data-id="${c.id}">刪除類別</button></div><div class="chips" style="margin-top:8px">${c.tags.map((t,i)=>`<button class="chip" data-a="delTag" data-id="${c.id}" data-i="${i}">${esc(t)} ✕</button>`).join('')||'<span class="mut">還沒有標籤</span>'}</div><div class="row" style="margin-top:10px"><input id="tag_${c.id}" placeholder="新增標籤" autocomplete="off"><button class="p" style="flex:none" data-a="addTag" data-id="${c.id}">新增</button></div></div>`).join('')}
   <div class="card"><p class="mut" style="margin-top:0">想抽別的東西，例如看什麼、今晚做什麼，可以新增類別。</p><div class="row"><input id="newCat" placeholder="類別名稱" autocomplete="off"><button class="p" style="flex:none" data-a="addCat">新增</button></div></div>
@@ -170,6 +171,7 @@ function vSet(){
 function vBulk(){
   const b=ui.bulk;
   let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次匯入</h1>
+  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次匯入（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名稱已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的選項會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>不要有</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>類別寫法</td><td>吃、活動，或自訂類別名稱</td><td>吃的、週末活動，或自訂類別名稱</td></tr><tr><td>入口</td><td>設定 → 批次匯入選項</td><td>設定 → 匯入備份</td></tr></table></div>
   <p class="mut">一行一個選項，第一欄是名稱。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會放進備註。</p>
   <pre>巷口越南河粉, 吃, 內用, 一般, 單人, 市區
 週五火鍋, 吃, 內用, 犒賞, 多人
@@ -183,6 +185,12 @@ function vBulk(){
   if(b.rows){
     h+=`<h2>預覽：${b.rows.length} 個${b.dup?'，另有 '+b.dup+' 個已在選項池會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill">${esc(catName(r.cat))}</span> <span class="pill w">${ST[r.status]}</span><div class="mut">${esc(tagLine(r))||'沒有標籤'}${r.note?' · 備註：'+esc(r.note):''}${r.url?' · 有地圖連結':''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 個</button>`:''}`}
+  h+=`<h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
+  <pre>名稱,類別,狀態,地點,區域,方式,價位,人數,時間,場地,預約,體力,標籤,備註,地圖,上次選擇日,待評分,已預約</pre>
+  <p class="mut">一個選項一列，用不到的欄位留空。<br>類別：吃的、週末活動，或自訂類別名稱（寫沒看過的名稱會自動新增類別）<br>狀態：待嘗試、喜歡、普通<br>一欄有多個值，用「、」分開，例如 內用、外送<br>吃的會用到：地點、區域、方式、價位、人數<br>活動會用到：區域、時間、場地、預約、人數、體力<br>自訂類別：用「標籤」欄<br>地圖：貼網址或地址　日期：2026-11-16　待評分、已預約：要的話填「是」</p>
+  <pre>巷口越南河粉,吃的,喜歡,,市區,內用,一般,單人,,,,,,,,,,
+陶藝體驗課,週末活動,待嘗試,,市區,,,兩人,半天,室內,要預約,輕鬆,,,,,,</pre>
+  <p class="mut" style="margin-bottom:0">最不會出錯的做法：先在「設定」匯出備份，用試算表改完再匯入。</p></div>`;
   return h}
 
 function norm(s){return s.replace(/\s/g,'')}

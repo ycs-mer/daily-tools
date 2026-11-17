@@ -54,6 +54,7 @@ nav b{display:block;font-size:20px;line-height:1.1}
 .empty{text-align:center;padding:28px 12px}
 .gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .back{border:none;background:none;padding:0;color:var(--mut);min-height:36px}
+.cmp{width:100%;border-collapse:collapse;font-size:13px}.cmp th,.cmp td{text-align:left;vertical-align:top;padding:7px 6px;border-bottom:1px solid var(--line)}.cmp tr:last-child td{border-bottom:none}.cmp th{color:var(--mut);font-weight:600}.cmp td:first-child{white-space:nowrap;color:var(--mut)}
 pre{white-space:pre-wrap;font:inherit;font-size:13px;background:var(--bg);border-radius:12px;padding:10px;margin:8px 0}
 body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:5}
 input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;text-align:left}
@@ -66,7 +67,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17';
+const VER='11/17 b';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
@@ -192,7 +193,7 @@ function vEdit(){
 function vSet(){
   return`<h1>設定</h1>
   <h2>備份</h2><div class="card"><p class="mut" style="margin-top:0">資料只存在這支手機。換手機前先匯出，到新手機再匯入。備份是 CSV 檔，可以用試算表打開。${db.lastExport?'上次匯出：'+db.lastExport:'還沒匯出過。'}</p>
-  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden></div>
+  <div class="gap"><button class="p" data-a="export">匯出備份</button><button data-a="importPick">匯入備份</button></div><input type="file" id="impFile" hidden><p class="mut" style="margin-bottom:0">匯入備份會整份取代手機上的資料，檔案要用匯出的欄位格式。只想新增幾個人，請用下面的「批次匯入名單」。</p></div>
   <h2>更新</h2><div class="card"><p class="mut" style="margin-top:0">有網路時，每次打開都會自動載入最新版。目前版本 ${VER}。</p><button data-a="refresh">重新整理</button></div>
   <h2>初始設定</h2><div class="card"><p class="mut" style="margin-top:0">一次加入很多人。</p><button data-a="go" data-tab="bulk">批次匯入名單</button></div>
   <p class="mut" style="text-align:center">共 ${db.people.length} 人 · ${db.people.reduce((s,p)=>s+p.notes.length,0)} 筆紀錄</p>`}
@@ -200,6 +201,7 @@ function vSet(){
 function vBulk(){
   const b=ui.bulk;
   let h=`<button class="back" data-a="go" data-tab="set">‹ 設定</button><h1>批次匯入</h1>
+  <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次匯入（本頁）</th><th>匯入備份</th></tr><tr><td>做什麼</td><td>只新增。名字已存在的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的人會被刪掉，確認前有預覽</td></tr><tr><td>標題列</td><td>不要有</td><td>一定要有，欄位名稱要完全一樣</td></tr><tr><td>對話紀錄</td><td>不能匯入，多的字只會進備註</td><td>可以，一筆紀錄一列</td></tr><tr><td>入口</td><td>設定 → 批次匯入名單</td><td>設定 → 匯入備份</td></tr></table></div>
   <p class="mut">一行一個人，第一欄是名字。其他欄用逗號或 Tab 分隔，順序不拘，認不出的字會放進備註。</p>
   <pre>Mei, 同事, 只記錄
 小安, 好友, 主動, 1個月, 2026-10-20
@@ -210,6 +212,13 @@ function vBulk(){
   if(b.rows){
     h+=`<h2>預覽：${b.rows.length} 人${b.dup?'，另有 '+b.dup+' 人已在名單中會略過':''}</h2><div class="card">${b.rows.length?b.rows.map(r=>`<div class="note"><span class="name">${esc(r.name)}</span> <span class="pill ${r.mode==='active'?'':'m'}">${r.mode==='active'?'主動 · '+ivName(r.iv):'只記錄'}</span><div class="mut">${esc(r.cat)}${r.last?' · 上次 '+r.last:''}${r.memo?' · 備註：'+esc(r.memo):''}</div></div>`).join(''):'<div class="mut">沒有可匯入的資料</div>'}</div>
     ${b.rows.length?`<button class="p w" data-a="bulkCommit">匯入這 ${b.rows.length} 人</button>`:''}`}
+  h+=`<h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
+  <pre>名字,分類,模式,間隔,上次聯絡日,下次可以問,備註,紀錄日期,紀錄內容</pre>
+  <p class="mut">分類：${CATS.join('、')}<br>模式：主動聯絡，或 只記錄<br>間隔：2週、1個月、3個月、半年<br>日期：2026-11-16<br>同一個人有多筆對話紀錄，就寫成多列：名字和前面幾欄重複寫，只換最後兩欄（紀錄日期、紀錄內容）。沒有紀錄的人，最後兩欄留空。</p>
+  <pre>小安,好友,主動聯絡,1個月,2026-11-16,問新工作,,2026-11-16,說下個月要搬家
+小安,好友,主動聯絡,1個月,2026-11-16,問新工作,,2026-10-20,在電梯遇到，聊到養貓
+Mei,同事,只記錄,1個月,,,,,</pre>
+  <p class="mut" style="margin-bottom:0">最不會出錯的做法：先在「設定」匯出備份，用試算表改完再匯入。</p></div>`;
   return h}
 
 function parseBulk(text){
