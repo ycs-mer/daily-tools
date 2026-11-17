@@ -257,10 +257,18 @@ function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith
       q={name,cat:g(r,'分類'),mode:/主動/.test(g(r,'模式'))?'active':'log',iv:f?f[0]:(parseInt(ivs)||30),last:normDate(g(r,'上次聯絡日'))||null,ask:g(r,'下次可以問'),memo:g(r,'備註'),notes:[]};map.set(name,q)}
     const t=g(r,'紀錄內容');if(t)q.notes.push({d:normDate(g(r,'紀錄日期'))||q.last||today(),t})});
   const people=[...map.values()];people.forEach(q=>q.notes.sort((a,b)=>b.d.localeCompare(a.d)));return{app:'keep-in-touch',data:{people}}}
-const VIEWS={week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,set:vSet,bulk:vBulk};
+const UNIT='人';
+function impList(title,arr,cls){return arr.length?`<h2>${title}（${arr.length}）</h2><div class="card">${arr.map(x=>`<div class="note"><span class="name" ${cls?'style="color:var(--danger)"':''}>${esc(x.n)}</span>${x.d?`<div class="mut">${esc(x.d)}</div>`:''}</div>`).join('')}</div>`:''}
+function vImp(){const m=ui.imp;if(!m){ui.tab='set';return vSet()}const d=m.diff,none=!d.add.length&&!d.chg.length&&!d.del.length;
+  return`<button class="back" data-a="go" data-tab="set">‹ 取消</button><h1>確認匯入</h1>
+  <p class="mut">匯入會整份取代手機上的資料。檔案裡有 ${m.count} ${UNIT}，手機上現在有 ${m.cur} ${UNIT}。</p>
+  <div class="card"><div class="chips"><span class="pill">新增 ${d.add.length}</span><span class="pill">修改 ${d.chg.length}</span><span class="pill" style="background:none;border:1px solid var(--danger);color:var(--danger)">刪除 ${d.del.length}</span><span class="pill" style="background:none;border:1px solid var(--line);color:var(--mut)">不變 ${d.same}</span></div>${none?'<p class="mut" style="margin-bottom:0">檔案內容和手機上的資料相同。</p>':''}</div>
+  ${impList('會刪除',d.del,1)}${impList('會修改',d.chg)}${impList('會新增',d.add)}
+  <div class="gap"><button class="p w" data-a="impApply">確認取代</button></div><div class="gap"><button class="w" data-a="go" data-tab="set">取消</button></div>`}
+const VIEWS={imp:vImp,week:vWeek,log:vLog,list:vList,person:vPerson,edit:vEdit,set:vSet,bulk:vBulk};
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
-  const cur=({person:'list',edit:'list',bulk:'set'})[ui.tab]||ui.tab;
+  const cur=({person:'list',edit:'list',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
   document.getElementById('nav').innerHTML=[['week','◎','本週'],['log','＋','記一筆'],['list','☰','名單'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
   window.scrollTo(0,0)}
 
@@ -305,6 +313,7 @@ const A={
     try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
       if(window.caches){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('kit-')).map(k=>caches.delete(k)))}}catch(e){}
     location.reload()},
+  impApply(){if(!ui.imp)return;db.people=ui.imp.people;ui.imp=null;save();toast('已匯入');ui.tab='list';render()},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
   bulkPreview(){const r=parseBulk(ui.bulk.text);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
@@ -325,9 +334,13 @@ document.addEventListener('input',e=>{const el=e.target;
 document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0];if(!f)return;
   const rd=new FileReader();
   if(el.id==='impFile'){rd.onload=()=>{try{const j=readBackup(String(rd.result));if(j.app!=='keep-in-touch'||!j.data||!Array.isArray(j.data.people))throw 0;
-      if(!confirm('匯入 '+j.data.people.length+' 人，取代目前手機上的 '+db.people.length+' 人？'))return;
-      db.people=j.data.people.map(p=>({id:p.id||uid(),name:String(p.name||''),cat:CATS.includes(p.cat)?p.cat:'其他',mode:p.mode==='active'?'active':'log',iv:Number(p.iv)||30,last:p.last||null,ask:p.ask||'',memo:p.memo||'',notes:Array.isArray(p.notes)?p.notes.map(n=>({d:String(n.d||today()),t:String(n.t||'')})):[],skip:p.skip||null})).filter(p=>p.name);
-      save();toast('已匯入');ui.tab='list';render()}catch(x){alert('這不是「保持聯絡」的備份檔。')}};rd.readAsText(f)}
+      const np=j.data.people.map(p=>({id:p.id||uid(),name:String(p.name||'').trim(),cat:CATS.includes(p.cat)?p.cat:'其他',mode:p.mode==='active'?'active':'log',iv:Number(p.iv)||30,last:p.last||null,ask:p.ask||'',memo:p.memo||'',notes:Array.isArray(p.notes)?p.notes.map(n=>({d:String(n.d||today()),t:String(n.t||'')})):[],skip:p.skip||null})).filter(p=>p.name);
+      const F=[['cat','分類'],['mode','模式'],['iv','間隔'],['last','上次聯絡日'],['ask','下次可以問'],['memo','備註']],old=new Map(db.people.map(p=>[p.name,p])),seen=new Set(),diff={add:[],chg:[],del:[],same:0};
+      np.forEach(p=>{seen.add(p.name);const o=old.get(p.name);if(!o){diff.add.push({n:p.name,d:p.cat+(p.notes.length?' · '+p.notes.length+' 筆紀錄':'')});return}
+        const w=F.filter(f=>String(o[f[0]]||'')!==String(p[f[0]]||'')).map(f=>f[1]);if(JSON.stringify(o.notes.map(n=>[n.d,n.t]))!==JSON.stringify(p.notes.map(n=>[n.d,n.t])))w.push('紀錄 '+o.notes.length+' → '+p.notes.length+' 筆');
+        if(w.length)diff.chg.push({n:p.name,d:w.join('、')});else diff.same++});
+      db.people.forEach(o=>{if(!seen.has(o.name))diff.del.push({n:o.name,d:o.cat+(o.notes.length?' · '+o.notes.length+' 筆紀錄會一起刪除':'')})});
+      ui.imp={people:np,diff,count:np.length,cur:db.people.length};ui.tab='imp';render()}catch(x){alert('這不是「保持聯絡」的備份檔。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
 

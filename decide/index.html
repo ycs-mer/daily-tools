@@ -239,10 +239,18 @@ function readBackup(text){text=text.replace(/^﻿/,'');if(text.trim().startsWith
     const sv=g(r,'狀態'),st=Object.keys(ST).find(k=>ST[k]===sv)||'try';
     items.push({id:uid(),cat,name,t,status:st,note:g(r,'備註'),url:g(r,'地圖'),last:normDate(g(r,'上次選擇日'))||null,pend:yes(g(r,'待評分')),booked:yes(g(r,'已預約'))})});
   return{app:'what-to-do',data:{items,locs,cats}}}
-const VIEWS={draw:vDraw,pool:vPool,edit:vEdit,set:vSet,bulk:vBulk};
+const UNIT='個';
+function impList(title,arr,cls){return arr.length?`<h2>${title}（${arr.length}）</h2><div class="card">${arr.map(x=>`<div class="note"><span class="name" ${cls?'style="color:var(--danger)"':''}>${esc(x.n)}</span>${x.d?`<div class="mut">${esc(x.d)}</div>`:''}</div>`).join('')}</div>`:''}
+function vImp(){const m=ui.imp;if(!m){ui.tab='set';return vSet()}const d=m.diff,none=!d.add.length&&!d.chg.length&&!d.del.length;
+  return`<button class="back" data-a="go" data-tab="set">‹ 取消</button><h1>確認匯入</h1>
+  <p class="mut">匯入會整份取代手機上的資料。檔案裡有 ${m.count} ${UNIT}，手機上現在有 ${m.cur} ${UNIT}。</p>
+  <div class="card"><div class="chips"><span class="pill">新增 ${d.add.length}</span><span class="pill">修改 ${d.chg.length}</span><span class="pill" style="background:none;border:1px solid var(--danger);color:var(--danger)">刪除 ${d.del.length}</span><span class="pill" style="background:none;border:1px solid var(--line);color:var(--mut)">不變 ${d.same}</span></div>${none?'<p class="mut" style="margin-bottom:0">檔案內容和手機上的資料相同。</p>':''}</div>
+  ${impList('會刪除',d.del,1)}${impList('會修改',d.chg)}${impList('會新增',d.add)}
+  <div class="gap"><button class="p w" data-a="impApply">確認取代</button></div><div class="gap"><button class="w" data-a="go" data-tab="set">取消</button></div>`}
+const VIEWS={imp:vImp,draw:vDraw,pool:vPool,edit:vEdit,set:vSet,bulk:vBulk};
 function render(){
   document.getElementById('app').innerHTML=VIEWS[ui.tab]();
-  const cur=({edit:'pool',bulk:'set'})[ui.tab]||ui.tab;
+  const cur=({edit:'pool',bulk:'set',imp:'set'})[ui.tab]||ui.tab;
   document.getElementById('nav').innerHTML=[['draw','◎','抽選'],['pool','☰','選項池'],['set','⚙','設定']].map(t=>`<button class="${cur===t[0]?'on':''}" data-a="go" data-tab="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join('');
   window.scrollTo(0,0)}
 
@@ -293,6 +301,9 @@ const A={
     try{if('serviceWorker' in navigator){const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}
       if(window.caches){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('wtd-')).map(k=>caches.delete(k)))}}catch(e){}
     location.reload()},
+  impApply(){const m=ui.imp;if(!m)return;db.locs=m.out.locs;db.cats=m.out.cats;db.items=m.out.items;ui.imp=null;
+    const nf={food:db.pref.f.food||{},act:db.pref.f.act||{}};db.cats.forEach(c=>{nf[c.id]={}});if(nf.food.loc)nf.food.loc=nf.food.loc.filter(o=>db.locs.includes(o));db.pref={cat:'food',f:nf};ui.cat='food';ui.f=nf.food;ui.poolCat='food';
+    save();ui.round=null;toast('已匯入');ui.tab='pool';render()},
   importPick(){document.getElementById('impFile').click()},
   bulkFile(){document.getElementById('bulkF').click()},
   bulkPreview(){const r=parseBulk(ui.bulk.text,ui.poolCat);ui.bulk.rows=r.rows;ui.bulk.dup=r.dup;render();const b=document.querySelector('[data-a=bulkCommit]');if(b)b.scrollIntoView({block:'end'})},
@@ -309,15 +320,21 @@ document.addEventListener('input',e=>{const el=e.target;if(el.dataset.m){const[o
 document.addEventListener('change',e=>{const el=e.target,f=el.files&&el.files[0];if(!f)return;
   const rd=new FileReader();
   if(el.id==='impFile'){rd.onload=()=>{try{const j=readBackup(String(rd.result));if(j.app!=='what-to-do'||!j.data||!Array.isArray(j.data.items))throw 0;
-      if(!confirm('匯入 '+j.data.items.length+' 個選項，取代目前手機上的 '+db.items.length+' 個？'))return;
-      if(Array.isArray(j.data.locs))db.locs=j.data.locs.map(String);
+      const bak={locs:db.locs,cats:db.cats};let out;
+      try{if(Array.isArray(j.data.locs))db.locs=j.data.locs.map(String);else db.locs=db.locs.slice();
       db.cats=Array.isArray(j.data.cats)?j.data.cats.filter(c=>c&&/^c_[\w-]+$/.test(String(c.id))&&c.name).slice(0,8).map(c=>({id:String(c.id),name:String(c.name),tags:Array.isArray(c.tags)?c.tags.map(String):[]})):[];
       j.data.items.forEach(x=>{if(!x||!x.t)return;if(Array.isArray(x.t.loc))x.t.loc.forEach(o=>{if(!db.locs.includes(String(o)))db.locs.push(String(o))});const c=db.cats.find(k=>k.id===x.cat);if(c&&Array.isArray(x.t.tag))x.t.tag.forEach(o=>{if(!c.tags.includes(String(o)))c.tags.push(String(o))})});
       const okCat=c=>c==='food'||c==='act'||db.cats.some(k=>k.id===c);
       j.data.items.forEach(x=>{if(x&&x.t&&Array.isArray(x.t.ppl))x.t.ppl=[...new Set(x.t.ppl.map(o=>MP[o]||String(o)))]});
-      db.items=j.data.items.filter(x=>x&&x.name&&okCat(x.cat)).map(x=>{const t={};dims(x.cat).forEach(d=>{const v=x.t&&Array.isArray(x.t[d.k])?x.t[d.k].map(String).filter(o=>d.o.includes(o)):[];t[d.k]=v});return{id:x.id||uid(),cat:x.cat,name:String(x.name),t,status:ST[x.status]?x.status:'try',note:String(x.note||''),url:mapUrl(x.url)?String(x.url):'',last:x.last||null,pend:!!x.pend,booked:!!x.booked}});
-      const nf={food:db.pref.f.food||{},act:db.pref.f.act||{}};db.cats.forEach(c=>{nf[c.id]={}});if(nf.food.loc)nf.food.loc=nf.food.loc.filter(o=>db.locs.includes(o));db.pref={cat:'food',f:nf};ui.cat='food';ui.f=nf.food;ui.poolCat='food';
-      save();ui.round=null;toast('已匯入');ui.tab='pool';render()}catch(x){alert('這不是「做什麼」的備份檔。')}};rd.readAsText(f)}
+      const items=j.data.items.filter(x=>x&&x.name&&okCat(x.cat)).map(x=>{const t={};dims(x.cat).forEach(d=>{const v=x.t&&Array.isArray(x.t[d.k])?x.t[d.k].map(String).filter(o=>d.o.includes(o)):[];t[d.k]=v});return{id:x.id||uid(),cat:x.cat,name:String(x.name).trim(),t,status:ST[x.status]?x.status:'try',note:String(x.note||''),url:mapUrl(x.url)?String(x.url):'',last:x.last||null,pend:!!x.pend,booked:!!x.booked}});
+      const nn=id=>id==='food'?CN.food:id==='act'?CN.act:(db.cats.find(c=>c.id===id)||{}).name||'',tl=it=>dims(it.cat).map(d=>(it.t[d.k]||[]).join('/')).filter(Boolean).join(' · ');
+      out={locs:db.locs,cats:db.cats,items,keys:items.map(it=>nn(it.cat)+'｜'+it.name),tags:items.map(tl)}}finally{db.locs=bak.locs;db.cats=bak.cats}
+      const F=[['status','狀態'],['note','備註'],['url','地圖'],['last','上次選擇日'],['pend','待評分'],['booked','已預約']],old=new Map(db.items.map(o=>[catName(o.cat)+'｜'+o.name,o])),seen=new Set(),diff={add:[],chg:[],del:[],same:0};
+      out.items.forEach((it,k)=>{const key=out.keys[k];seen.add(key);const o=old.get(key);if(!o){diff.add.push({n:it.name,d:key.split('｜')[0]+(out.tags[k]?' · '+out.tags[k]:'')});return}
+        const w=F.filter(f=>String(o[f[0]]||'')!==String(it[f[0]]||'')).map(f=>f[1]);if(tagLine(o)!==out.tags[k])w.unshift('標籤：'+(tagLine(o)||'無')+' → '+(out.tags[k]||'無'));
+        if(w.length)diff.chg.push({n:it.name,d:w.join('、')});else diff.same++});
+      old.forEach((o,key)=>{if(!seen.has(key))diff.del.push({n:o.name,d:key.split('｜')[0]})});
+      ui.imp={out,diff,count:out.items.length,cur:db.items.length};ui.tab='imp';render()}catch(x){alert('這不是「做什麼」的備份檔。')}};rd.readAsText(f)}
   if(el.id==='bulkF'){rd.onload=()=>{ui.bulk.text=String(rd.result);ui.bulk.rows=null;render()};rd.readAsText(f)}
   el.value=''});
 
