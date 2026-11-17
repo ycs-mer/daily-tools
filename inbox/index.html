@@ -41,6 +41,12 @@ button.s{min-height:36px;padding:6px 12px;font-size:14px}
 input,textarea,select{font:inherit;font-size:16px;width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 12px;min-height:44px}
 textarea{min-height:140px;resize:vertical}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+.sw{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;padding:10px 14px}
+.sw .tr{position:relative;flex:none;width:51px;height:31px;border-radius:999px;background:#C9CDD8;transition:background .2s}
+.sw .tr::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.sw[aria-checked=true] .tr{background:#8F84E6}
+.sw[aria-checked=true] .tr::after{transform:translateX(20px)}
+@media (prefers-color-scheme: dark){.sw .tr{background:#4a5478}.sw[aria-checked=true] .tr{background:#9d92f0}}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;min-height:36px;font-size:14px}
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
@@ -72,11 +78,11 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17 b';
+const VER='11/17 c';
 const KEY='braininbox.v1';
 const WD=['日','一','二','三','四','五','六'];
 let db=load();
-let ui={tab:'log',draft:{text:'',share:false},q:'',kind:'all',range:'all',from:'',to:'',st:'all',by:'week',edit:null,imp:null,bulk:{text:'',rows:null,dup:0}};
+let ui={tab:'log',draft:{text:'',share:false},q:'',kind:'all',range:'all',from:'',to:'',st:'all',edit:null,imp:null,bulk:{text:'',rows:null,dup:0}};
 
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.items))return d}catch(e){}return{items:[],lastExport:null}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -107,7 +113,7 @@ function terms(){return ui.q.trim().toLowerCase().split(/\s+/).filter(Boolean)}
 function hl(s){const t=terms();if(!t.length)return esc(s);const re=new RegExp('('+t.map(escRe).join('|')+')','gi');
   return String(s).split(re).map((p,i)=>i%2?'<mark>'+esc(p)+'</mark>':esc(p)).join('')}
 function rangeOf(){const t=today();
-  if(ui.range==='today')return[t,t];if(ui.range==='week')return[weekStart(t),t];if(ui.range==='month')return[t.slice(0,8)+'01',t];
+  if(ui.range==='month')return[t.slice(0,8)+'01',t];
   if(ui.range==='year')return[t.slice(0,5)+'01-01',t];if(ui.range==='custom')return[ui.from||'',ui.to||''];return['','']}
 function filtersActive(){return !!(ui.q.trim()||ui.range!=='all'||ui.st!=='all'||ui.kind!=='all')}
 function filtered(){const[f,t]=rangeOf(),ts=terms();
@@ -117,7 +123,7 @@ function filtered(){const[f,t]=rangeOf(),ts=terms();
 function vLog(){
   return`<h1>記一筆</h1>
   <label>現在在想什麼</label><textarea id="dText" data-m="draft.text" placeholder="例如：為什麼我總是睡前才想到這些？">${esc(ui.draft.text)}</textarea>
-  <div class="chips" style="margin-top:10px"><button class="chip ${ui.draft.share?'on':''}" data-a="toggleShare" aria-pressed="${ui.draft.share}">想跟朋友分享</button></div>
+  <button class="sw" style="margin-top:10px" role="switch" aria-checked="${ui.draft.share}" data-a="toggleShare"><span>想跟朋友分享</span><span class="tr"></span></button>
   <p class="mut">也可以點輸入框後，按鍵盤上的麥克風用說的。</p>
   <div class="gap"><button class="p w" data-a="save">儲存</button></div>
   <p class="mut" style="text-align:center;margin-top:16px">目前還在想 ${thinkCount()} 則${shareLeft()?' · 還沒講的 '+shareLeft()+' 則':''}</p>`}
@@ -134,30 +140,27 @@ function rowsHtml(){
   let h=`<div class="row sp" style="margin:12px 0 4px"><span class="mut">${act?'找到 '+r.length+' 則（共 '+all+' 則）':'共 '+all+' 則'}</span>${act?'<button class="s" data-a="clear">清除篩選</button>':''}</div>`;
   if(!r.length)return h+`<div class="card empty"><p class="name">沒有符合的想法</p><p class="mut">換個關鍵字，或放寬日期、狀態。</p></div>`;
   const groups=[],idx={},t=today();
-  r.forEach(x=>{const d=x.at.slice(0,10),k=ui.by==='week'?weekStart(d):d.slice(0,7);
+  r.forEach(x=>{const d=x.at.slice(0,10),k=d.slice(0,7);
     if(!(k in idx)){idx[k]=groups.length;groups.push({k,items:[]})}groups[idx[k]].items.push(x)});
-  groups.forEach(g=>{let label;
-    if(ui.by==='week'){label=(g.k===weekStart(t)?'本週 · ':'')+dateLabel(g.k).replace(/（.）/,'')+' – '+dateLabel(addDays(g.k,6)).replace(/（.）/,'')}
-    else{label=(g.k===t.slice(0,7)?'本月 · ':'')+g.k.slice(0,4)+' 年 '+Number(g.k.slice(5,7))+' 月'}
+  groups.forEach(g=>{const label=(g.k===t.slice(0,7)?'本月 · ':'')+g.k.slice(0,4)+' 年 '+Number(g.k.slice(5,7))+' 月';
     h+=`<div class="grp"><span>${label}</span><span>${g.items.length} 則</span></div>${g.items.map(itemHtml).join('')}`});
   h+=`<div class="gap"><button class="w" data-a="copy">複製這 ${r.length} 則</button></div>`;
   return h}
 function vReview(){
-  const R=[['all','不限日期'],['today','今天'],['week','本週'],['month','本月'],['year','今年'],['custom','自訂日期']];
+  const R=[['all','不限日期'],['month','本月'],['year','今年'],['custom','自訂日期']];
   return`<h1>回顧</h1>
   <input id="q" type="search" data-i="q" placeholder="搜尋想法或後來" value="${esc(ui.q)}" autocomplete="off" enterkeyhint="search">
   <label>日期</label><div class="chips">${R.map(r=>chip('setRange',r[0],r[1],ui.range===r[0])).join('')}</div>
   ${ui.range==='custom'?`<div class="dr" style="margin-top:8px"><div><label style="margin-top:0">從</label><input type="date" data-i="from" value="${esc(ui.from)}" max="${today()}"></div><div><label style="margin-top:0">到</label><input type="date" data-i="to" value="${esc(ui.to)}" max="${today()}"></div></div>`:''}
-  <label>類型</label><div class="chips">${[['all','不限類型'],['share','想分享'],['plain','一般']].map(r=>chip('setKind',r[0],r[1],ui.kind===r[0])).join('')}</div>
+  <label>類型</label><div class="chips">${[['all','不限類型'],['plain','問自己'],['share','想分享']].map(r=>chip('setKind',r[0],r[1],ui.kind===r[0])).join('')}</div>
   <label>狀態</label><div class="chips">${(ui.kind==='share'?[['all','全部'],['think','還沒講'],['done','講過了']]:[['all','全部'],['think','還在想'],['done','想通了']]).map(r=>chip('setStatus',r[0],r[1],ui.st===r[0])).join('')}</div>
-  <label>分組</label><div class="chips">${[['week','依週'],['month','依月']].map(r=>chip('setBy',r[0],r[1],ui.by===r[0])).join('')}</div>
   <div id="rows">${rowsHtml()}</div>`}
 
 function vEdit(){const e=ui.edit;if(!e){ui.tab='review';return vReview()}
   return`<button class="back" data-a="go" data-tab="review">‹ 回顧</button><h1>修改想法</h1>
   <p class="mut">記錄於 ${stampLabel(e.at)}</p>
   <label>想法</label><textarea id="eT" data-m="edit.t">${esc(e.t)}</textarea>
-  <div class="chips" style="margin-top:12px"><button class="chip ${e.k==='share'?'on':''}" data-a="editShare" aria-pressed="${e.k==='share'}">想跟朋友分享</button></div>
+  <button class="sw" style="margin-top:12px" role="switch" aria-checked="${e.k==='share'}" data-a="editShare"><span>想跟朋友分享</span><span class="tr"></span></button>
   <label>狀態</label><div class="seg"><button class="chip ${e.st==='think'?'on':''}" data-a="setSt" data-v="think">${e.k==='share'?'還沒講':'還在想'}</button><button class="chip ${e.st==='done'?'on':''}" data-a="setSt" data-v="done">${e.k==='share'?'講過了':'想通了'}</button></div>
   <label>後來（選填）</label><textarea id="eL" data-m="edit.later" style="min-height:72px" placeholder="後來怎麼想，或得到什麼答案">${esc(e.later)}</textarea>
   <div class="gap"><button class="p w" data-a="editSave">儲存</button></div>
@@ -177,7 +180,7 @@ function vBulk(){const b=ui.bulk;
   <h2>先選對方式</h2><div class="card"><table class="cmp"><tr><th></th><th>批次新增（本頁）</th><th>匯入備份</th></tr>
   <tr><td>做什麼</td><td>只新增。同一天、內容相同的會略過，不會改也不會刪</td><td>整份取代。檔案裡沒有的想法會被刪掉，確認前有預覽</td></tr>
   <tr><td>標題列</td><td>不用，一行一則</td><td>一定要有，欄位名稱要完全一樣</td></tr>
-  <tr><td>狀態、類型與後來</td><td>不能指定，都是「還在想」的一般想法</td><td>可以</td></tr>
+  <tr><td>狀態、類型與後來</td><td>不能指定，都是「還在想」的問自己想法</td><td>可以</td></tr>
   <tr><td>入口</td><td>設定 → 批次新增想法</td><td>設定 → 匯入備份</td></tr></table></div>
   <p class="mut">一行一則想法。行首可以選填日期（和時間），沒寫就當作現在記下的。</p>
   <pre>為什麼我總是睡前才想到這些？
@@ -186,8 +189,8 @@ function vBulk(){const b=ui.bulk;
   <p class="mut">日期格式：2026-10-20，或 2026/10/20。後面空一格再寫想法。</p>
   <h2>匯入備份的檔案格式</h2><div class="card"><p class="mut" style="margin-top:0">第一列必須是下面這行，一個字都不能改：</p>
   <pre>想法,狀態,後來,加入時間,想通了日期,類型</pre>
-  <p class="mut">最後一欄「類型」可以省略（舊備份沒有也能匯入），省略就視為一般。<br>類型：想分享、一般<br>狀態：還在想、想通了；類型是想分享的，寫還沒講、講過了<br>加入時間：2026-11-17 22:45:12（日期加時間）<br>想通了日期：2026-11-20，還在想的留空<br>想法內容有逗號或換行時，試算表會自動處理，不用特別改。</p>
-  <pre>為什麼我總是睡前才想到這些？,還在想,,2026-11-17 22:45:12,,一般
+  <p class="mut">最後一欄「類型」可以省略（舊備份沒有也能匯入），省略就視為問自己。<br>類型：想分享、問自己<br>狀態：還在想、想通了；類型是想分享的，寫還沒講、講過了<br>加入時間：2026-11-17 22:45:12（日期加時間）<br>想通了日期：2026-11-20，還在想的留空<br>想法內容有逗號或換行時，試算表會自動處理，不用特別改。</p>
+  <pre>為什麼我總是睡前才想到這些？,還在想,,2026-11-17 22:45:12,,問自己
 同事把會議室叫成教室,還沒講,,2026-11-18 09:10:00,,想分享</pre>
   <p class="mut" style="margin-bottom:0">最不會出錯的做法：先在「設定」匯出備份，用試算表改完再匯入。</p></div>
   <label>貼上想法</label><textarea data-m="bulk.text" id="bulkText" style="min-height:160px" placeholder="一行一則">${esc(b.text)}</textarea>
@@ -214,7 +217,7 @@ function parseCsv(t){t=t.replace(/^﻿/,'');const rows=[];let row=[],c='',q=fals
     else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(c);rows.push(row);row=[];c=''}else c+=ch}
   if(c!==''||row.length){row.push(c);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()!==''))}
 const CH=['想法','狀態','後來','加入時間','想通了日期'],CHX=[...CH,'類型'];
-function backupCsv(){const rows=[CHX];[...db.items].sort((a,b)=>a.at.localeCompare(b.at)).forEach(x=>rows.push([x.t,x.k==='share'?(x.st==='done'?'講過了':'還沒講'):(x.st==='done'?'想通了':'還在想'),x.later||'',x.at,x.doneAt||'',x.k==='share'?'想分享':'一般']));return toCsv(rows)}
+function backupCsv(){const rows=[CHX];[...db.items].sort((a,b)=>a.at.localeCompare(b.at)).forEach(x=>rows.push([x.t,x.k==='share'?(x.st==='done'?'講過了':'還沒講'):(x.st==='done'?'想通了':'還在想'),x.later||'',x.at,x.doneAt||'',x.k==='share'?'想分享':'問自己']));return toCsv(rows)}
 function readBackup(text){
   const rows=parseCsv(text),h=(rows[0]||[]).map(x=>x.trim()),col=n=>h.indexOf(n),miss=CH.filter(n=>col(n)<0);
   if(miss.length)throw new Error('標題列不符，缺少欄位：'+miss.join('、')+'\n\n匯入備份的第一列必須是：\n'+CH.join(',')+'\n\n你的第一列是：\n'+h.join(',')+'\n\n如果只是想新增幾則，請改用「批次新增想法」。');
@@ -247,7 +250,6 @@ const A={
     const sh=ui.draft.share;db.items.push({id:uid(),t,at:uniqAt(stamp(),new Set(db.items.map(x=>x.at))),st:'think',later:'',doneAt:null,k:sh?'share':''});save();ui.draft.text='';ui.draft.share=false;toast(sh?'已記下，還沒講的 '+shareLeft()+' 則':'已記下，還在想 '+thinkCount()+' 則');render()},
   setRange(d){ui.range=d.v;render(true)},
   setStatus(d){ui.st=d.v;render(true)},
-  setBy(d){ui.by=d.v;render(true)},
   clear(){ui.q='';ui.range='all';ui.from='';ui.to='';ui.st='all';ui.kind='all';render(true)},
   edit(d){const x=item(d.id);if(!x)return;ui.edit={id:x.id,at:x.at,t:x.t,st:x.st,later:x.later||'',k:x.k==='share'?'share':''};ui.tab='edit';render()},
   setSt(d){ui.edit.st=d.v;render(true)},
