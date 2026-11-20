@@ -67,7 +67,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/20';
+const VER='11/20 b';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
@@ -160,15 +160,14 @@ function rowsHtml(){
   const nm=(a,b)=>a.name.localeCompare(b.name,'zh-Hant');
   l.sort((a,b)=>{const x=lastDate(a),y=lastDate(b);if(!x||!y){if(x===y)return nm(a,b);return x?-1:1}
     return x===y?nm(a,b):(ui.sort==='old'?x.localeCompare(y):y.localeCompare(x))});
-  if(!l.length)return'<div class="card empty mut">沒有符合的人</div>';
-  return l.map(p=>{const n=lastNote(p);return`<div class="card row" data-a="open" data-id="${p.id}"><div class="av">${esc(p.name.slice(0,1))}</div><div style="min-width:0;flex:1"><div class="row sp"><span class="name">${esc(p.name)}</span><span class="pill ${p.mode==='active'?'':'m'}">${p.mode==='active'?'主動聯絡':'只記錄'}</span></div><div class="mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cat)} · ${lastDate(p)?'上次 '+md(lastDate(p)):'還沒有紀錄'}${n?' · '+esc(n.t):''}</div></div></div>`}).join('')}
+  const bar=`<div class="row sp" style="margin:0 2px 4px"><span class="mut">共 ${l.length} 人</span><button class="s" style="border:none;background:none;color:var(--mut);padding:0 4px" data-a="toggleSort" aria-label="切換排序，現在是${ui.sort==='old'?'最久沒聯絡':'最近聯絡'}">${ui.sort==='old'?'最久沒聯絡':'最近聯絡'} ⇅</button></div>`;
+  if(!l.length)return bar+'<div class="card empty mut">沒有符合的人</div>';
+  return bar+l.map(p=>{const n=lastNote(p);return`<div class="card row" data-a="open" data-id="${p.id}"><div class="av">${esc(p.name.slice(0,1))}</div><div style="min-width:0;flex:1"><div class="row sp"><span class="name">${esc(p.name)}</span><span class="pill ${p.mode==='active'?'':'m'}">${p.mode==='active'?'主動聯絡':'只記錄'}</span></div><div class="mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cat)} · ${lastDate(p)?'上次 '+md(lastDate(p)):'還沒有紀錄'}${n?' · '+esc(n.t):''}</div></div></div>`}).join('')}
 function vList(){
   return`<div class="row sp"><h1>名單</h1><button class="p s" data-a="newPerson">＋ 新增</button></div>
   <input placeholder="搜尋名字" value="${esc(ui.q)}" data-i="q" autocomplete="off">
   <div class="chips" style="margin:10px 0">${['',...CATS].map(c=>`<button class="chip ${ui.cat===c?'on':''}" data-a="cat" data-c="${c}">${c||'全部'}</button>`).join('')}</div>
-  <div class="chips" style="margin:0 0 10px"><span class="mut" style="align-self:center">排序</span>${[['recent','最近聯絡'],['old','最久沒聯絡']].map(o=>`<button class="chip ${ui.sort===o[0]?'on':''}" data-a="sortBy" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
-  <div id="rows">${rowsHtml()}</div>
-  <p class="mut" style="text-align:center">共 ${db.people.length} 人</p>`}
+  <div id="rows">${rowsHtml()}</div>`}
 
 function vPerson(){
   const p=person(ui.pid);if(!p){ui.tab='list';return vList()}
@@ -344,7 +343,7 @@ const A={
     if(!p.last||date>p.last)p.last=date;if(d.ask.trim())p.ask=d.ask.trim();p.skip=null;save();
     ui.draft=newDraft();ui.logQ='';ui.pid=p.id;ui.tab='log';toast('已記下：'+p.name);render()},
   cat(d){ui.cat=d.c;render()},
-  sortBy(d){ui.sort=d.v;render()},
+  toggleSort(){ui.sort=ui.sort==='old'?'recent':'old';document.getElementById('rows').innerHTML=rowsHtml()},
   newPerson(){ui.edit={id:null,name:'',cat:'好友',mode:'active',iv:30,last:'',ask:'',memo:''};ui.tab='edit';render()},
   editPerson(){const p=person(ui.pid);ui.edit={id:p.id,name:p.name,cat:p.cat,mode:p.mode,iv:p.iv,last:p.last||'',ask:p.ask||'',memo:p.memo||''};ui.tab='edit';render()},
   setE(d){ui.edit[d.k]=d.k==='iv'?Number(d.v):d.v;render()},
