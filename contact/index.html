@@ -67,13 +67,13 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='11/17 d';
+const VER='11/20';
 const KEY='keepintouch.v1';
 const CATS=['家人','好友','同事','舊識','其他'];
 const IVS=[[14,'2 週'],[30,'1 個月'],[90,'3 個月'],[180,'半年']];
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let db=load();
-let ui={en:null,tab:'log',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
+let ui={sort:'recent',en:null,tab:'log',all:false,hq:'',doneId:null,dn:{t:''},q:'',cat:'',pid:null,edit:null,draft:newDraft(),logQ:'',bulk:{text:'',rows:null}};
 
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.people))return d}catch(e){}return{people:[],lastExport:null}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
@@ -92,6 +92,7 @@ let tt;function toast(m){const t=document.getElementById('toast');t.textContent=
 
 function dueList(){const t=today();return db.people.filter(p=>p.mode==='active'&&!(p.skip&&p.skip>t)).map(p=>({p,r:p.last?days(p.last,t)/p.iv:1.5})).filter(x=>x.r>=1).sort((a,b)=>b.r-a.r)}
 function overLabel(p){if(!p.last)return'還沒有聯絡紀錄';const o=days(p.last,today())-p.iv;return o<=0?'到期了':'超過 '+span(o)}
+function lastDate(p){const a=p.last||'',b=p.notes&&p.notes.length?p.notes[0].d:'';return a>b?a:b}
 function lastNote(p){return p.notes&&p.notes.length?p.notes[0]:null}
 
 function dueCard(p){const n=lastNote(p);
@@ -156,13 +157,16 @@ function vLog(){
 function rowsHtml(){
   const q=ui.q.trim().toLowerCase();
   let l=db.people.filter(p=>(!ui.cat||p.cat===ui.cat)&&(!q||p.name.toLowerCase().includes(q)));
-  l.sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+  const nm=(a,b)=>a.name.localeCompare(b.name,'zh-Hant');
+  l.sort((a,b)=>{const x=lastDate(a),y=lastDate(b);if(!x||!y){if(x===y)return nm(a,b);return x?-1:1}
+    return x===y?nm(a,b):(ui.sort==='old'?x.localeCompare(y):y.localeCompare(x))});
   if(!l.length)return'<div class="card empty mut">沒有符合的人</div>';
-  return l.map(p=>{const n=lastNote(p);return`<div class="card row" data-a="open" data-id="${p.id}"><div class="av">${esc(p.name.slice(0,1))}</div><div style="min-width:0;flex:1"><div class="row sp"><span class="name">${esc(p.name)}</span><span class="pill ${p.mode==='active'?'':'m'}">${p.mode==='active'?'主動聯絡':'只記錄'}</span></div><div class="mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cat)}${n?' · '+md(n.d)+' '+esc(n.t):''}</div></div></div>`}).join('')}
+  return l.map(p=>{const n=lastNote(p);return`<div class="card row" data-a="open" data-id="${p.id}"><div class="av">${esc(p.name.slice(0,1))}</div><div style="min-width:0;flex:1"><div class="row sp"><span class="name">${esc(p.name)}</span><span class="pill ${p.mode==='active'?'':'m'}">${p.mode==='active'?'主動聯絡':'只記錄'}</span></div><div class="mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cat)} · ${lastDate(p)?'上次 '+md(lastDate(p)):'還沒有紀錄'}${n?' · '+esc(n.t):''}</div></div></div>`}).join('')}
 function vList(){
   return`<div class="row sp"><h1>名單</h1><button class="p s" data-a="newPerson">＋ 新增</button></div>
   <input placeholder="搜尋名字" value="${esc(ui.q)}" data-i="q" autocomplete="off">
   <div class="chips" style="margin:10px 0">${['',...CATS].map(c=>`<button class="chip ${ui.cat===c?'on':''}" data-a="cat" data-c="${c}">${c||'全部'}</button>`).join('')}</div>
+  <div class="chips" style="margin:0 0 10px"><span class="mut" style="align-self:center">排序</span>${[['recent','最近聯絡'],['old','最久沒聯絡']].map(o=>`<button class="chip ${ui.sort===o[0]?'on':''}" data-a="sortBy" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
   <div id="rows">${rowsHtml()}</div>
   <p class="mut" style="text-align:center">共 ${db.people.length} 人</p>`}
 
@@ -340,6 +344,7 @@ const A={
     if(!p.last||date>p.last)p.last=date;if(d.ask.trim())p.ask=d.ask.trim();p.skip=null;save();
     ui.draft=newDraft();ui.logQ='';ui.pid=p.id;ui.tab='log';toast('已記下：'+p.name);render()},
   cat(d){ui.cat=d.c;render()},
+  sortBy(d){ui.sort=d.v;render()},
   newPerson(){ui.edit={id:null,name:'',cat:'好友',mode:'active',iv:30,last:'',ask:'',memo:''};ui.tab='edit';render()},
   editPerson(){const p=person(ui.pid);ui.edit={id:p.id,name:p.name,cat:p.cat,mode:p.mode,iv:p.iv,last:p.last||'',ask:p.ask||'',memo:p.memo||''};ui.tab='edit';render()},
   setE(d){ui.edit[d.k]=d.k==='iv'?Number(d.v):d.v;render()},
